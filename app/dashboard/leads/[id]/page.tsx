@@ -19,10 +19,12 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { getLeadById } from "@/app/actions/leads-actions"
+import { getConversationInsights } from "@/app/actions/insights-actions"
 import { formatDistanceToNow, format } from "date-fns"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ConversationHistory } from "@/components/dashboard/conversation-history"
+import { ConversationInsights } from "@/components/dashboard/conversation-insights"
 
 interface Lead {
   id: number
@@ -71,6 +73,10 @@ export default function LeadDetailPage() {
   const params = useParams()
   const [lead, setLead] = useState<Lead | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [insightsContact, setInsightsContact] = useState<{
+    email?: string | null
+    phone?: string | null
+  }>({})
 
   useEffect(() => {
     fetchLead()
@@ -80,6 +86,17 @@ export default function LeadDetailPage() {
     try {
       const data = await getLeadById(params.id as string)
       setLead(data)
+
+      if (data?.session_id) {
+        const { insights } = await getConversationInsights(data.session_id)
+        if (insights && insights.length > 0) {
+          const latestInsight = insights[0]
+          setInsightsContact({
+            email: latestInsight.email_address || latestInsight.contact_email,
+            phone: latestInsight.phone || latestInsight.phone_number,
+          })
+        }
+      }
     } catch (error) {
       console.error("Error fetching lead:", error)
     }
@@ -123,6 +140,9 @@ export default function LeadDetailPage() {
       </div>
     )
   }
+
+  const email = insightsContact.email || lead.email_address
+  const phone = insightsContact.phone || lead.phone
 
   return (
     <div className="space-y-6">
@@ -186,6 +206,9 @@ export default function LeadDetailPage() {
           {/* Conversation History */}
           <ConversationHistory sessionId={lead.session_id} />
 
+          {/* AI-powered Conversation Insights */}
+          <ConversationInsights sessionId={lead.session_id} />
+
           {/* Pain Points */}
           {lead.pain_points && lead.pain_points.length > 0 && (
             <Card>
@@ -244,12 +267,14 @@ export default function LeadDetailPage() {
               <CardTitle>Contact Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {lead.email_address ? (
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
+              {email ? (
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm text-muted-foreground">{lead.email_address}</p>
+                    <a href={`mailto:${email}`} className="text-sm text-blue-600 hover:underline break-all">
+                      {email}
+                    </a>
                   </div>
                 </div>
               ) : (
@@ -261,12 +286,14 @@ export default function LeadDetailPage() {
 
               <Separator />
 
-              {lead.phone ? (
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <div>
+              {phone ? (
+                <div className="flex items-start gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">Phone</p>
-                    <p className="text-sm text-muted-foreground">{lead.phone}</p>
+                    <a href={`tel:${phone}`} className="text-sm text-blue-600 hover:underline break-all">
+                      {phone}
+                    </a>
                   </div>
                 </div>
               ) : (
@@ -283,7 +310,7 @@ export default function LeadDetailPage() {
                     <MessageSquare className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">Sender ID</p>
-                      <p className="text-sm text-muted-foreground">{lead.sender_id}</p>
+                      <p className="text-sm text-muted-foreground break-all">{lead.sender_id}</p>
                     </div>
                   </div>
                 </>
@@ -329,15 +356,25 @@ export default function LeadDetailPage() {
               <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {lead.email_address && (
-                <Button className="w-full bg-transparent" variant="outline">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Email
-                </Button>
+              {email && (
+                <a href={`mailto:${email}`} className="block">
+                  <Button className="w-full bg-transparent" variant="outline">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Email
+                  </Button>
+                </a>
+              )}
+              {phone && (
+                <a href={`tel:${phone}`} className="block">
+                  <Button className="w-full bg-transparent" variant="outline">
+                    <Phone className="h-4 w-4 mr-2" />
+                    Call Phone
+                  </Button>
+                </a>
               )}
               <Button className="w-full bg-transparent" variant="outline">
                 <MessageSquare className="h-4 w-4 mr-2" />
-                View Conversation
+                View Full Thread
               </Button>
             </CardContent>
           </Card>

@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Users, Search, Mail, Phone, TrendingUp, MessageSquare, Star, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useState, useEffect } from "react"
-import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
+import type { Lead } from "@/app/actions/leads-actions"
+import { getLeadsWithInsights } from "@/app/actions/insights-actions"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
@@ -19,13 +20,16 @@ export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterQualified, setFilterQualified] = useState<string>("all")
   const [filterSentiment, setFilterSentiment] = useState<string>("all")
+  const [filterHasInsights, setFilterHasInsights] = useState<string>("all")
+  const [filterIntent, setFilterIntent] = useState<string>("all")
+  const [filterHasContact, setFilterHasContact] = useState<string>("all")
 
   useEffect(() => {
     loadLeads()
   }, [])
 
   const loadLeads = async () => {
-    const { data, error } = await fetchLeads()
+    const { data, error } = await getLeadsWithInsights()
     if (error) {
       setConnectionError(error)
     }
@@ -47,7 +51,25 @@ export default function LeadsPage() {
 
     const matchesSentiment = filterSentiment === "all" || lead.sentiment?.toLowerCase() === filterSentiment
 
-    return matchesSearch && matchesQualified && matchesSentiment
+    const matchesHasInsights =
+      filterHasInsights === "all" ||
+      (filterHasInsights === "with" && (lead as any).insight) ||
+      (filterHasInsights === "without" && !(lead as any).insight)
+
+    const matchesIntent =
+      filterIntent === "all" ||
+      (lead as any).insight?.intent?.toLowerCase() === filterIntent ||
+      (lead as any).insight?.customer_intent?.toLowerCase() === filterIntent ||
+      lead.customer_intent?.toLowerCase() === filterIntent
+
+    const matchesHasContact =
+      filterHasContact === "all" ||
+      (filterHasContact === "with" && (lead.email_address || lead.phone)) ||
+      (filterHasContact === "without" && !lead.email_address && !lead.phone)
+
+    return (
+      matchesSearch && matchesQualified && matchesSentiment && matchesHasInsights && matchesIntent && matchesHasContact
+    )
   })
 
   const getQualityColor = (score: number | null) => {
@@ -181,8 +203,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="relative sm:col-span-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by email, phone, or session..."
@@ -192,7 +214,7 @@ export default function LeadsPage() {
           />
         </div>
         <Select value={filterQualified} onValueChange={setFilterQualified}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger>
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -202,14 +224,34 @@ export default function LeadsPage() {
           </SelectContent>
         </Select>
         <Select value={filterSentiment} onValueChange={setFilterSentiment}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by sentiment" />
+          <SelectTrigger>
+            <SelectValue placeholder="Sentiment" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sentiments</SelectItem>
             <SelectItem value="positive">Positive</SelectItem>
             <SelectItem value="neutral">Neutral</SelectItem>
             <SelectItem value="negative">Negative</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterHasInsights} onValueChange={setFilterHasInsights}>
+          <SelectTrigger>
+            <SelectValue placeholder="Insights" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="with">With Insights</SelectItem>
+            <SelectItem value="without">Without Insights</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterHasContact} onValueChange={setFilterHasContact}>
+          <SelectTrigger>
+            <SelectValue placeholder="Contact Info" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="with">Has Contact</SelectItem>
+            <SelectItem value="without">No Contact</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -221,7 +263,12 @@ export default function LeadsPage() {
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No leads found</h3>
             <p className="text-muted-foreground text-center">
-              {searchTerm || filterQualified !== "all" || filterSentiment !== "all"
+              {searchTerm ||
+              filterQualified !== "all" ||
+              filterSentiment !== "all" ||
+              filterHasInsights !== "all" ||
+              filterIntent !== "all" ||
+              filterHasContact !== "all"
                 ? "Try adjusting your filters"
                 : "Leads will appear here when conversations are analyzed"}
             </p>

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { MessageSquare, Bot, BarChart3, Settings, LogOut, Home, Zap, Users } from "lucide-react"
+import { MessageSquare, Bot, BarChart3, Settings, LogOut, Home, Zap, Users, Lightbulb } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { useState } from "react"
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Chatbots", href: "/dashboard/chatbots", icon: Bot },
   { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
   { name: "Leads", href: "/dashboard/leads", icon: Users },
+  { name: "Insights", href: "/dashboard/insights", icon: Lightbulb },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Integrations", href: "/dashboard/integrations", icon: Zap },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },

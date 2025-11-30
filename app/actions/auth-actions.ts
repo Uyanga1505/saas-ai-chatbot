@@ -84,3 +84,36 @@ export async function getCurrentUser() {
     return null
   }
 }
+
+export async function updateProfile(data: { full_name: string; company_name: string }) {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return { error: "Not authenticated" }
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: data.full_name,
+        company_name: data.company_name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id)
+
+    if (error) {
+      return { error: error.message }
+    }
+
+    return { error: null }
+  } catch (error) {
+    console.error("Error updating profile:", error)
+    return { error: "An unexpected error occurred" }
+  }
+}

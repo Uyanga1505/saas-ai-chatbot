@@ -120,3 +120,49 @@ export async function getLeadById(id: string) {
   const result = await fetchLeadById(Number.parseInt(id))
   return result.data
 }
+
+export async function getLeadsSummary() {
+  try {
+    const supabase = await createClient()
+
+    const { data: leads, error } = await supabase.from("n8n_chat_histories").select("*")
+
+    if (error) {
+      console.error("Error fetching leads summary:", error)
+      return {
+        totalLeads: 0,
+        qualifiedLeads: 0,
+        withContactInfo: 0,
+        avgQualityScore: 0,
+      }
+    }
+
+    const totalLeads = leads?.length || 0
+    const qualifiedLeads = leads?.filter((lead: any) => lead.qualified_lead === true).length || 0
+    const withContactInfo = leads?.filter((lead: any) => lead.email_address || lead.phone).length || 0
+
+    const qualityScores = leads
+      ?.map((lead: any) => lead.lead_quality_score)
+      .filter((score: any) => score != null && !isNaN(score))
+
+    const avgQualityScore =
+      qualityScores && qualityScores.length > 0
+        ? qualityScores.reduce((sum: number, score: number) => sum + score, 0) / qualityScores.length
+        : 0
+
+    return {
+      totalLeads,
+      qualifiedLeads,
+      withContactInfo,
+      avgQualityScore,
+    }
+  } catch (error) {
+    console.error("Error calculating leads summary:", error)
+    return {
+      totalLeads: 0,
+      qualifiedLeads: 0,
+      withContactInfo: 0,
+      avgQualityScore: 0,
+    }
+  }
+}

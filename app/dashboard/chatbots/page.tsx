@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare, TestTube } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { getChatbots, toggleChatbotStatus, deleteChatbot } from "@/app/actions/chatbot-actions"
 
 interface Chatbot {
   id: string
@@ -27,8 +27,7 @@ export default function ChatbotsPage() {
   }, [])
 
   const fetchChatbots = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.from("chatbots").select("*").order("created_at", { ascending: false })
+    const { data, error } = await getChatbots()
 
     if (error) {
       console.error("Error fetching chatbots:", error)
@@ -38,26 +37,24 @@ export default function ChatbotsPage() {
     setIsLoading(false)
   }
 
-  const toggleChatbotStatus = async (id: string, currentStatus: boolean) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("chatbots").update({ is_active: !currentStatus }).eq("id", id)
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    const { success, error } = await toggleChatbotStatus(id, currentStatus)
 
     if (error) {
       console.error("Error updating chatbot status:", error)
-    } else {
+    } else if (success) {
       fetchChatbots()
     }
   }
 
-  const deleteChatbot = async (id: string) => {
+  const handleDeleteChatbot = async (id: string) => {
     if (!confirm("Are you sure you want to delete this chatbot?")) return
 
-    const supabase = createClient()
-    const { error } = await supabase.from("chatbots").delete().eq("id", id)
+    const { success, error } = await deleteChatbot(id)
 
     if (error) {
       console.error("Error deleting chatbot:", error)
-    } else {
+    } else if (success) {
       fetchChatbots()
     }
   }
@@ -142,11 +139,7 @@ export default function ChatbotsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleChatbotStatus(chatbot.id, chatbot.is_active)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => handleToggleStatus(chatbot.id, chatbot.is_active)}>
                     {chatbot.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
 
@@ -171,7 +164,7 @@ export default function ChatbotsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => deleteChatbot(chatbot.id)}
+                    onClick={() => handleDeleteChatbot(chatbot.id)}
                     className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
