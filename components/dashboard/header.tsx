@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Bell, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { getCurrentUser } from "@/app/actions/auth-actions"
 import Link from "next/link"
 
 interface User {
@@ -19,11 +19,8 @@ export function DashboardHeader() {
 
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
+      const userData = await getCurrentUser()
+      setUser(userData)
     }
     getUser()
   }, [])

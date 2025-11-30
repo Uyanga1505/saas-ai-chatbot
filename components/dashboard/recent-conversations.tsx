@@ -35,6 +35,17 @@ export function RecentConversations() {
     return "bg-blue-100 text-blue-800"
   }
 
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Recently"
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return "Recently"
+      return formatDistanceToNow(date, { addSuffix: true })
+    } catch (error) {
+      return "Recently"
+    }
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -96,9 +107,7 @@ export function RecentConversations() {
                           {conversation.sentiment}
                         </Badge>
                       )}
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{formatDate(conversation.updated_at)}</span>
                     </div>
                   </div>
                 </div>

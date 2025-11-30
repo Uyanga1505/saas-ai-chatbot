@@ -39,29 +39,58 @@ export function ConversationHistory({ sessionId, conversationId }: ConversationH
 
   const fetchMessages = async () => {
     try {
+      console.log("[v0] Fetching messages for session:", sessionId)
       const data = await getConversationHistory(sessionId, conversationId)
+      console.log("[v0] Received messages:", data?.length || 0)
       setMessages(data || [])
     } catch (error) {
-      console.error("Error fetching messages:", error)
+      console.error("[v0] Error fetching messages:", error)
     }
     setIsLoading(false)
   }
 
-  // Extract message text from various possible formats
   const getMessageText = (message: Message["message"]) => {
+    if (!message) return "No message"
     if (typeof message === "string") return message
+
+    // Check common message field names
     if (message.content) return message.content
     if (message.text) return message.text
-    return JSON.stringify(message)
+    if (message.message) return message.message
+    if (message.body) return message.body
+
+    // If it's an object with no obvious text field, stringify it
+    return JSON.stringify(message, null, 2)
   }
 
-  // Determine if message is from user or bot
   const isUserMessage = (message: Message) => {
     const msgData = message.message
-    if (msgData.role === "user" || msgData.sender === "user") return true
-    if (msgData.role === "assistant" || msgData.sender === "bot") return false
-    // Default to alternating pattern
+    const senderId = message.sender_id?.toLowerCase() || ""
+
+    // Check role field
+    if (msgData?.role === "user" || msgData?.role === "human") return true
+    if (msgData?.role === "assistant" || msgData?.role === "bot" || msgData?.role === "ai") return false
+
+    // Check sender field
+    if (msgData?.sender === "user" || msgData?.sender === "human") return true
+    if (msgData?.sender === "bot" || msgData?.sender === "assistant") return false
+
+    // Check sender_id
+    if (senderId.includes("user") || senderId.includes("customer")) return true
+    if (senderId.includes("bot") || senderId.includes("assistant")) return false
+
+    // Default: alternate between user and bot
     return messages.indexOf(message) % 2 === 0
+  }
+
+  const formatMessageDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return "Recently"
+      return format(date, "MMM d, h:mm a")
+    } catch {
+      return "Recently"
+    }
   }
 
   if (isLoading) {
@@ -114,7 +143,7 @@ export function ConversationHistory({ sessionId, conversationId }: ConversationH
             const messageText = getMessageText(message.message)
 
             return (
-              <div key={message.id} className={`flex gap-3 ${isUser ? "justify-start" : "justify-end"}`}>
+              <div key={message.id || idx} className={`flex gap-3 ${isUser ? "justify-start" : "justify-end"}`}>
                 {isUser && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-blue-100 text-blue-600">
@@ -131,9 +160,7 @@ export function ConversationHistory({ sessionId, conversationId }: ConversationH
                   >
                     <p className="text-sm whitespace-pre-wrap break-words">{messageText}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(message.created_at), "MMM d, h:mm a")}
-                  </span>
+                  <span className="text-xs text-muted-foreground mt-1">{formatMessageDate(message.created_at)}</span>
                 </div>
 
                 {!isUser && (

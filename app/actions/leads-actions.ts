@@ -19,6 +19,8 @@ export interface Lead {
   created_at: string
   updated_at: string
   sender_id: string | null
+  conversation?: any
+  full_conversation_history?: any
 }
 
 export interface Message {
@@ -70,25 +72,43 @@ export async function fetchLeadById(id: number) {
   }
 }
 
-export async function fetchConversationHistory(sessionId: string) {
+export async function getConversationHistory(sessionId: string, conversationId?: string) {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
-      .from("conversation_history")
+    console.log("[v0] Fetching conversation for session:", sessionId)
+
+    const { data: messages, error: messagesError } = await supabase
+      .from("n8n_chat_histories")
       .select("*")
       .eq("session_id", sessionId)
       .order("created_at", { ascending: true })
 
-    if (error) {
-      console.error("Error fetching conversation history:", error)
-      return { data: [], error: error.message }
+    if (messagesError) {
+      console.error("[v0] Error fetching messages:", messagesError)
+      return []
     }
 
-    return { data: data || [], error: null }
+    if (!messages || messages.length === 0) {
+      console.log("[v0] No messages found for session")
+      return []
+    }
+
+    console.log("[v0] Found", messages.length, "message rows")
+    console.log("[v0] Sample message keys:", messages[0] ? Object.keys(messages[0]) : "no data")
+
+    return messages.map((row: any, idx: number) => ({
+      id: row.id || idx,
+      created_at: row.created_at || row.updated_at,
+      session_id: sessionId,
+      message: row.message || row.summary || row,
+      conversation_id: sessionId,
+      user_id: row.user_id || null,
+      sender_id: row.sender_id || "unknown",
+    }))
   } catch (error) {
-    console.error("Error connecting to database:", error)
-    return { data: [], error: "Failed to connect to database" }
+    console.error("[v0] Error fetching conversation:", error)
+    return []
   }
 }
 
@@ -99,31 +119,4 @@ export async function getLeads() {
 export async function getLeadById(id: string) {
   const result = await fetchLeadById(Number.parseInt(id))
   return result.data
-}
-
-export async function getConversationHistory(sessionId: string, conversationId?: string) {
-  try {
-    const supabase = await createClient()
-
-    let query = supabase.from("conversation_history").select("*").order("created_at", { ascending: true })
-
-    // Filter by session_id or conversation_id
-    if (conversationId) {
-      query = query.eq("conversation_id", conversationId)
-    } else {
-      query = query.eq("session_id", sessionId)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      console.error("Error fetching conversation history:", error)
-      return []
-    }
-
-    return data || []
-  } catch (error) {
-    console.error("Error connecting to database:", error)
-    return []
-  }
 }

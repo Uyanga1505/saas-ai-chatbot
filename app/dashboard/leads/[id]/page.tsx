@@ -43,6 +43,30 @@ interface Lead {
   sender_id: string | null
 }
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "N/A"
+
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "N/A"
+    return format(date, "MMM d, yyyy")
+  } catch {
+    return "N/A"
+  }
+}
+
+const formatRelativeTime = (dateString: string | null | undefined): string => {
+  if (!dateString) return "N/A"
+
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "N/A"
+    return formatDistanceToNow(date, { addSuffix: true })
+  } catch {
+    return "N/A"
+  }
+}
+
 export default function LeadDetailPage() {
   const params = useParams()
   const [lead, setLead] = useState<Lead | null>(null)
@@ -280,23 +304,19 @@ export default function LeadDetailPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Created</span>
-                <span className="text-sm font-medium">{format(new Date(lead.created_at), "MMM d, yyyy")}</span>
+                <span className="text-sm font-medium">{formatDate(lead.created_at)}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Last Updated</span>
-                <span className="text-sm font-medium">
-                  {formatDistanceToNow(new Date(lead.updated_at), { addSuffix: true })}
-                </span>
+                <span className="text-sm font-medium">{formatRelativeTime(lead.updated_at)}</span>
               </div>
               {lead.analyzed_at && (
                 <>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Analyzed</span>
-                    <span className="text-sm font-medium">
-                      {formatDistanceToNow(new Date(lead.analyzed_at), { addSuffix: true })}
-                    </span>
+                    <span className="text-sm font-medium">{formatRelativeTime(lead.analyzed_at)}</span>
                   </div>
                 </>
               )}

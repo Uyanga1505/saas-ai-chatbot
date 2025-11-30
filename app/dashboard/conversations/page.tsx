@@ -8,10 +8,21 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MessageSquare, Search, Filter, User, Star, CheckCircle2, ExternalLink } from "lucide-react"
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "Recently"
+
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "Recently"
+    return formatDistanceToNow(date, { addSuffix: true })
+  } catch {
+    return "Recently"
+  }
+}
 
 interface Conversation {
   id: string
@@ -29,36 +40,14 @@ interface Conversation {
 }
 
 export default function ConversationsPage() {
-  const [internalConversations, setInternalConversations] = useState<Conversation[]>([])
   const [externalConversations, setExternalConversations] = useState<Lead[]>([])
-  const [isLoadingInternal, setIsLoadingInternal] = useState(true)
   const [isLoadingExternal, setIsLoadingExternal] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("messenger")
 
   useEffect(() => {
-    fetchInternalConversations()
     fetchExternalConversations()
   }, [])
-
-  const fetchInternalConversations = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("conversations")
-      .select(`
-        *,
-        chatbot:chatbots(name),
-        messages(content, role, created_at)
-      `)
-      .order("updated_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching internal conversations:", error)
-    } else {
-      setInternalConversations(data || [])
-    }
-    setIsLoadingInternal(false)
-  }
 
   const fetchExternalConversations = async () => {
     const { data } = await fetchLeads()
@@ -66,24 +55,12 @@ export default function ConversationsPage() {
     setIsLoadingExternal(false)
   }
 
-  const filteredInternalConversations = internalConversations.filter(
-    (conversation) =>
-      conversation.messenger_user_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conversation.chatbot.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
   const filteredExternalConversations = externalConversations.filter(
     (conversation) =>
       conversation.session_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conversation.email_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conversation.sender_id?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
-
-  const getLastMessage = (messages: any[]) => {
-    if (messages.length === 0) return "No messages"
-    const lastMessage = messages[messages.length - 1]
-    return lastMessage.content.length > 50 ? lastMessage.content.substring(0, 50) + "..." : lastMessage.content
-  }
 
   const getQualityColor = (score: number | null) => {
     if (!score) return "bg-gray-100 text-gray-800"
@@ -100,9 +77,8 @@ export default function ConversationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-1">
           <TabsTrigger value="messenger">Messenger Leads</TabsTrigger>
-          <TabsTrigger value="internal">Internal Chats</TabsTrigger>
         </TabsList>
 
         <TabsContent value="messenger" className="space-y-4 mt-6">
@@ -189,7 +165,7 @@ export default function ConversationsPage() {
                                   {conversation.phone}
                                 </span>
                               )}
-                              <span>{formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}</span>
+                              <span>{formatDate(conversation.updated_at)}</span>
                             </div>
                           </div>
                         </div>
@@ -200,75 +176,6 @@ export default function ConversationsPage() {
                     </CardContent>
                   </Card>
                 </Link>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="internal" className="space-y-4 mt-6">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search conversations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button variant="outline" className="gap-2 bg-transparent">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-
-          {isLoadingInternal ? (
-            <div className="text-center py-12">Loading internal conversations...</div>
-          ) : filteredInternalConversations.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No conversations yet</h3>
-                <p className="text-muted-foreground text-center">Internal test conversations will appear here</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filteredInternalConversations.map((conversation) => (
-                <Card key={conversation.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback>
-                            <User className="h-6 w-6" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">User {conversation.messenger_user_id.slice(-8)}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {conversation.chatbot.name}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{getLastMessage(conversation.messages)}</p>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>{conversation.messages.length} messages</span>
-                            <span>
-                              Last active {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-100 text-green-800">Active</Badge>
-                        <Button variant="ghost" size="sm">
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               ))}
             </div>
           )}
