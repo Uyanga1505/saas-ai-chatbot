@@ -1,14 +1,5 @@
-import { createBrowserClient } from "@supabase/ssr"
-
+// This should only be used in contexts where we have server-provided credentials
+// For authentication, use server actions from app/actions/auth-actions.ts
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase environment variables. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project.",
-    )
-  }
-
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+  throw new Error("Direct client creation is disabled. Please use server actions for authentication.")
 }

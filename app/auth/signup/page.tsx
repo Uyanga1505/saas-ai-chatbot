@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { signUp } from "@/app/actions/auth-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,24 +22,17 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
-          data: {
-            full_name: fullName,
-            company_name: companyName,
-          },
-        },
-      })
-      if (error) throw error
-      router.push("/auth/verify-email")
+      const result = await signUp(email, password, fullName)
+
+      if (result.error) {
+        setError(result.error)
+      } else {
+        router.push("/auth/verify-email")
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -99,7 +92,26 @@ export default function SignupPage() {
                 required
               />
             </div>
-            {error && <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{error}</div>}
+            {error && (
+              <div className="text-sm bg-red-50 border border-red-200 p-4 rounded-md space-y-2">
+                <p className="text-red-600 font-medium">{error}</p>
+                {error.includes("Missing Supabase environment variables") && (
+                  <div className="text-red-700 text-xs space-y-2 mt-3 pt-3 border-t border-red-200">
+                    <p className="font-semibold">To use your Supabase database in v0 preview:</p>
+                    <ol className="list-decimal list-inside space-y-1 pl-2">
+                      <li>
+                        Open <code className="bg-red-100 px-1 py-0.5 rounded">lib/supabase/config.ts</code>
+                      </li>
+                      <li>Uncomment the TEMP_SUPABASE_URL and TEMP_SUPABASE_ANON_KEY lines</li>
+                      <li>Replace with your actual Supabase credentials</li>
+                      <li>Comment out the process.env lines</li>
+                    </ol>
+                    <p className="mt-2 font-semibold">Find your credentials at:</p>
+                    <p className="break-all">supabase.com/dashboard → Your Project → Settings → API</p>
+                  </div>
+                )}
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creating account..." : "Create account"}
             </Button>

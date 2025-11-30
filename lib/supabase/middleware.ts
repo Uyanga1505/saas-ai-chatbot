@@ -1,21 +1,19 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { supabaseConfig, isSupabaseConfigured } from "./config"
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
   // If Supabase credentials are not available, just continue without auth check
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!isSupabaseConfigured()) {
     console.log("[v0] Supabase credentials not found, skipping auth check")
     return supabaseResponse
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll()

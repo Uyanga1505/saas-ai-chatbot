@@ -3,90 +3,110 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-
-const conversations = [
-  {
-    id: "1",
-    user: "John Doe",
-    lastMessage: "Thanks for the help with my order!",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 minutes ago
-    status: "resolved",
-    chatbot: "Support Bot",
-  },
-  {
-    id: "2",
-    user: "Sarah Wilson",
-    lastMessage: "Can you help me with product recommendations?",
-    timestamp: new Date(Date.now() - 1000 * 60 * 45), // 45 minutes ago
-    status: "active",
-    chatbot: "Sales Bot",
-  },
-  {
-    id: "3",
-    user: "Mike Johnson",
-    lastMessage: "What are your business hours?",
-    timestamp: new Date(Date.now() - 1000 * 60 * 120), // 2 hours ago
-    status: "resolved",
-    chatbot: "FAQ Bot",
-  },
-  {
-    id: "4",
-    user: "Emily Chen",
-    lastMessage: "I need help with my account settings",
-    timestamp: new Date(Date.now() - 1000 * 60 * 180), // 3 hours ago
-    status: "pending",
-    chatbot: "Support Bot",
-  },
-]
+import { useState, useEffect } from "react"
+import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
+import { Users, ExternalLink } from "lucide-react"
+import Link from "next/link"
 
 export function RecentConversations() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "resolved":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+  const [conversations, setConversations] = useState<Lead[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadConversations()
+  }, [])
+
+  const loadConversations = async () => {
+    const { data } = await fetchLeads()
+    setConversations(data.slice(0, 5))
+    setIsLoading(false)
+  }
+
+  const getStatusColor = (qualified: boolean) => {
+    return qualified ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+  }
+
+  const getSentimentColor = (sentiment: string | null) => {
+    if (!sentiment) return "bg-gray-100 text-gray-800"
+    if (sentiment.toLowerCase() === "positive") return "bg-green-100 text-green-800"
+    if (sentiment.toLowerCase() === "negative") return "bg-red-100 text-red-800"
+    return "bg-blue-100 text-blue-800"
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Conversations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">Loading conversations...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Conversations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">No conversations yet</div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Recent Conversations</CardTitle>
+        <Link href="/dashboard/leads">
+          <Button variant="ghost" size="sm" className="gap-2">
+            View All
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </Link>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {conversations.map((conversation) => (
-            <div key={conversation.id} className="flex items-center justify-between space-x-4 rounded-lg border p-4">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback>
-                    {conversation.user
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{conversation.user}</p>
-                  <p className="text-sm text-muted-foreground">{conversation.lastMessage}</p>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {conversation.chatbot}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(conversation.timestamp, { addSuffix: true })}
-                    </span>
+            <Link key={conversation.id} href={`/dashboard/leads/${conversation.id}`}>
+              <div className="flex items-center justify-between space-x-4 rounded-lg border p-4 hover:bg-accent transition-colors cursor-pointer">
+                <div className="flex items-center space-x-4 flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarFallback className="bg-blue-100 text-blue-600">
+                      <Users className="h-5 w-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {conversation.email_address || `Session ${conversation.session_id.slice(0, 12)}...`}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {conversation.summary || `${conversation.message_count} messages`}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {conversation.sentiment && (
+                        <Badge variant="outline" className={`${getSentimentColor(conversation.sentiment)} text-xs`}>
+                          {conversation.sentiment}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <Badge className={`${getStatusColor(conversation.qualified_lead)} text-xs flex-shrink-0`}>
+                  {conversation.qualified_lead ? "Qualified" : "Lead"}
+                </Badge>
               </div>
-              <Badge className={`${getStatusColor(conversation.status)} text-xs`}>{conversation.status}</Badge>
-            </div>
+            </Link>
           ))}
         </div>
       </CardContent>

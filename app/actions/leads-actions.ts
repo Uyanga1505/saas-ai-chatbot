@@ -1,6 +1,6 @@
 "use server"
 
-import { createExternalClient } from "@/lib/supabase/external-client"
+import { createClient } from "@/lib/supabase/server"
 
 export interface Lead {
   id: number
@@ -24,22 +24,21 @@ export interface Lead {
 export interface Message {
   id: number
   session_id: string
-  sender: string
-  message_text: string
-  timestamp: string
+  message: any // JSONB field containing message data
+  conversation_id: string | null
+  user_id: string | null
+  sender_id: string | null
   created_at: string
 }
 
 export async function fetchLeads() {
   try {
-    const supabase = createExternalClient()
+    const supabase = await createClient()
 
-    if (!supabase) {
-      console.warn("External Supabase is not configured.")
-      return { data: [], error: null }
-    }
-
-    const { data, error } = await supabase.from("conversations").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase
+      .from("n8n_chat_histories")
+      .select("*")
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching leads:", error)
@@ -48,20 +47,16 @@ export async function fetchLeads() {
 
     return { data: data || [], error: null }
   } catch (error) {
-    console.error("Error connecting to external database:", error)
-    return { data: [], error: "Failed to connect to external database" }
+    console.error("Error connecting to database:", error)
+    return { data: [], error: "Failed to connect to database" }
   }
 }
 
 export async function fetchLeadById(id: number) {
   try {
-    const supabase = createExternalClient()
+    const supabase = await createClient()
 
-    if (!supabase) {
-      return { data: null, error: "External Supabase is not configured" }
-    }
-
-    const { data, error } = await supabase.from("conversations").select("*").eq("id", id).single()
+    const { data, error } = await supabase.from("n8n_chat_histories").select("*").eq("id", id).single()
 
     if (error) {
       console.error("Error fetching lead:", error)
@@ -70,24 +65,20 @@ export async function fetchLeadById(id: number) {
 
     return { data, error: null }
   } catch (error) {
-    console.error("Error connecting to external database:", error)
-    return { data: null, error: "Failed to connect to external database" }
+    console.error("Error connecting to database:", error)
+    return { data: null, error: "Failed to connect to database" }
   }
 }
 
 export async function fetchConversationHistory(sessionId: string) {
   try {
-    const supabase = createExternalClient()
-
-    if (!supabase) {
-      return { data: [], error: "External Supabase is not configured" }
-    }
+    const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from("messages")
+      .from("conversation_history")
       .select("*")
       .eq("session_id", sessionId)
-      .order("timestamp", { ascending: true })
+      .order("created_at", { ascending: true })
 
     if (error) {
       console.error("Error fetching conversation history:", error)
@@ -96,8 +87,8 @@ export async function fetchConversationHistory(sessionId: string) {
 
     return { data: data || [], error: null }
   } catch (error) {
-    console.error("Error connecting to external database:", error)
-    return { data: [], error: "Failed to connect to external database" }
+    console.error("Error connecting to database:", error)
+    return { data: [], error: "Failed to connect to database" }
   }
 }
 
@@ -112,11 +103,7 @@ export async function getLeadById(id: string) {
 
 export async function getConversationHistory(sessionId: string, conversationId?: string) {
   try {
-    const supabase = createExternalClient()
-
-    if (!supabase) {
-      return []
-    }
+    const supabase = await createClient()
 
     let query = supabase.from("conversation_history").select("*").order("created_at", { ascending: true })
 
@@ -136,7 +123,7 @@ export async function getConversationHistory(sessionId: string, conversationId?:
 
     return data || []
   } catch (error) {
-    console.error("Error connecting to external database:", error)
+    console.error("Error connecting to database:", error)
     return []
   }
 }
