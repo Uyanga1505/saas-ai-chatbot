@@ -226,9 +226,9 @@ export default function IntegrationsPage() {
             <div className="space-y-3">
               <h4 className="font-medium">2. Configure Webhooks</h4>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Set webhook URL to the URL above</li>
-                <li>Use "your_verify_token" as verify token</li>
-                <li>Subscribe to messages events</li>
+                <li>Set webhook URL to the URL shown above</li>
+                <li>Set Verify Token to the value of your <code className="bg-muted px-1 rounded text-xs">MESSENGER_VERIFY_TOKEN</code> env variable</li>
+                <li>Subscribe to the <strong>messages</strong> event</li>
               </ul>
             </div>
 

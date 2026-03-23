@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const token = url.searchParams.get("hub.verify_token")
   const challenge = url.searchParams.get("hub.challenge")
 
-  if (mode === "subscribe" && token === "your_verify_token") {
+  if (mode === "subscribe" && token === process.env.MESSENGER_VERIFY_TOKEN) {
     return new Response(challenge)
   }
 
@@ -125,7 +125,7 @@ async function handleMessage(event: any) {
 
 async function sendMessengerMessage(accessToken: string, recipientId: string, message: string) {
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${accessToken}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

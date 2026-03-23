@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { MessageSquare } from "lucide-react"
 
 export function Footer() {
@@ -83,14 +84,14 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Privacy
-                </a>
+                <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
+                  Privacy Policy
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Terms
-                </a>
+                <Link href="/terms-of-service" className="hover:text-foreground transition-colors">
+                  Terms of Service
+                </Link>
               </li>
             </ul>
           </div>

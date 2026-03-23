@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Save } from "lucide-react"
+import { ArrowLeft, Save, Copy, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -34,6 +34,17 @@ export default function ChatbotSettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [copiedWebhook, setCopiedWebhook] = useState(false)
+
+  const webhookUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/api/messenger/webhook`
+    : "/api/messenger/webhook"
+
+  const copyWebhookUrl = async () => {
+    await navigator.clipboard.writeText(webhookUrl)
+    setCopiedWebhook(true)
+    setTimeout(() => setCopiedWebhook(false), 2000)
+  }
 
   useEffect(() => {
     fetchChatbot()
@@ -229,14 +240,27 @@ export default function ChatbotSettingsPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Webhook URL</Label>
+              <p className="text-xs text-muted-foreground">Copy this URL into the Facebook Developer Console → Messenger → Webhooks</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-muted p-2 rounded font-mono break-all">{webhookUrl}</code>
+                <Button type="button" variant="outline" size="sm" onClick={copyWebhookUrl}>
+                  {copiedWebhook ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Setup Instructions</h4>
+              <h4 className="font-medium text-blue-900 mb-2">Facebook Developer Console – What to enter</h4>
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                <li>Create a Facebook App in the Meta Developer Console</li>
-                <li>Add the Messenger product to your app</li>
-                <li>Generate a Page Access Token for your Facebook Page</li>
-                <li>Enter your Page ID and Access Token above</li>
-                <li>Configure webhooks to receive messages</li>
+                <li>Go to <strong>developers.facebook.com</strong> → Your App → Messenger → Settings</li>
+                <li>Under <strong>Webhooks</strong>, click <em>Add Callback URL</em></li>
+                <li>Paste the <strong>Webhook URL</strong> above as the Callback URL</li>
+                <li>Set <strong>Verify Token</strong> to your <code className="bg-blue-100 px-1 rounded">MESSENGER_VERIFY_TOKEN</code> env variable value</li>
+                <li>Subscribe to the <strong>messages</strong> event</li>
+                <li>Under <strong>Access Tokens</strong>, connect your Facebook Page and copy the Page Access Token here</li>
+                <li>Copy the Page ID from your Facebook Page → About section and paste it above</li>
               </ol>
             </div>
           </CardContent>
