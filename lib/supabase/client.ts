@@ -1,5 +1,6 @@
-// This should only be used in contexts where we have server-provided credentials
-// For authentication, use server actions from app/actions/auth-actions.ts
+import { createBrowserClient } from "@supabase/ssr"
+import { supabaseConfig } from "./config"
+
 export function createClient() {
-  throw new Error("Direct client creation is disabled. Please use server actions for authentication.")
+  return createBrowserClient(supabaseConfig.url, supabaseConfig.anonKey)
 }

@@ -1,145 +1,58 @@
 import { createClient } from "@/lib/supabase/server"
-import { openai } from "@ai-sdk/openai"
-import { generateText } from "ai"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
-  const mode = url.searchParams.get("hub.mode")
-  const token = url.searchParams.get("hub.verify_token")
-  const challenge = url.searchParams.get("hub.challenge")
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const mode = searchParams.get("hub.mode")
+  const token = searchParams.get("hub.verify_token")
+  const challenge = searchParams.get("hub.challenge")
 
   if (mode === "subscribe" && token === process.env.MESSENGER_VERIFY_TOKEN) {
-    return new Response(challenge)
+    return new NextResponse(challenge, { status: 200 })
   }
 
-  return new Response("Forbidden", { status: 403 })
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 }
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-
-    // Process Messenger webhook events
-    if (body.object === "page") {
-      for (const entry of body.entry) {
-        for (const event of entry.messaging) {
-          if (event.message && event.message.text) {
-            await handleMessage(event)
-          }
-        }
-      }
-    }
-
-    return new Response("OK")
-  } catch (error) {
-    console.error("Webhook error:", error)
-    return new Response("Error", { status: 500 })
-  }
+export async function POST(req: NextRequest) {
+  // Acknowledge Facebook immediately (required within 20s)
+  const body = await req.json()
+  processWebhook(body).catch(console.error)
+  return NextResponse.json({ status: "ok" }, { status: 200 })
 }
 
-async function handleMessage(event: any) {
+async function processWebhook(body: Record<string, unknown>) {
+  const entry = (body.entry as Record<string, unknown>[])?.[0]
+  if (!entry) return
+
+  const messaging = (entry.messaging as Record<string, unknown>[])?.[0]
+  if (!messaging) return
+
+  const pageId = (messaging.recipient as Record<string, string>)?.id
+  const senderId = (messaging.sender as Record<string, string>)?.id
+  const messageText = (messaging.message as Record<string, string>)?.text
+
+  // Skip echo messages (bot talking to itself)
+  if (!pageId || !senderId || !messageText || senderId === pageId) return
+
   const supabase = await createClient()
-  const senderId = event.sender.id
-  const messageText = event.message.text
-  const pageId = event.recipient.id
 
-  // Find chatbot by page ID
+  // Find the active chatbot for this Facebook page
   const { data: chatbot } = await supabase
     .from("chatbots")
-    .select("*")
+    .select("id, system_prompt, ai_model, messenger_access_token, enable_human_handoff")
     .eq("messenger_page_id", pageId)
     .eq("is_active", true)
     .single()
 
   if (!chatbot) {
-    console.log("No active chatbot found for page:", pageId)
+    console.warn(`[webhook] No active chatbot found for page_id: ${pageId}`)
     return
   }
 
-  // Get or create conversation
-  let { data: conversation } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("chatbot_id", chatbot.id)
-    .eq("messenger_user_id", senderId)
-    .single()
-
-  if (!conversation) {
-    const { data: newConversation } = await supabase
-      .from("conversations")
-      .insert({
-        chatbot_id: chatbot.id,
-        messenger_user_id: senderId,
-      })
-      .select("id")
-      .single()
-    conversation = newConversation
-  }
-
-  // Store user message
-  await supabase.from("messages").insert({
-    conversation_id: conversation.id,
-    content: messageText,
-    role: "user",
+  // Log the incoming message to n8n_chat_histories so n8n can pick it up
+  await supabase.from("n8n_chat_histories").insert({
+    session_id: `fb_${senderId}`,
+    message: { type: "human", content: messageText },
   })
-
-  // Get recent conversation history for context
-  const { data: recentMessages } = await supabase
-    .from("messages")
-    .select("content, role")
-    .eq("conversation_id", conversation.id)
-    .order("created_at", { ascending: false })
-    .limit(10)
-
-  // Build conversation context
-  const conversationHistory =
-    recentMessages?.reverse().map((msg) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    })) || []
-
-  // Generate AI response
-  const { text } = await generateText({
-    model: openai(chatbot.ai_model || "gpt-3.5-turbo"),
-    messages: [
-      {
-        role: "system",
-        content: chatbot.system_prompt || "You are a helpful AI assistant.",
-      },
-      ...conversationHistory,
-    ],
-    maxOutputTokens: 1000,
-    temperature: 0.7,
-  })
-
-  // Store AI response
-  await supabase.from("messages").insert({
-    conversation_id: conversation.id,
-    content: text,
-    role: "assistant",
-  })
-
-  // Send response back to Messenger
-  await sendMessengerMessage(chatbot.messenger_access_token, senderId, text)
-}
-
-async function sendMessengerMessage(accessToken: string, recipientId: string, message: string) {
-  try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${accessToken}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text: message },
-      }),
-    })
-
-    if (!response.ok) {
-      console.error("Failed to send Messenger message:", await response.text())
-    }
-  } catch (error) {
-    console.error("Error sending Messenger message:", error)
-  }
 }
