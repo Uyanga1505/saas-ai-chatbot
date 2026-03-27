@@ -37,8 +37,10 @@ export async function fetchLeads() {
   try {
     const supabase = await createClient()
 
+    // Query conversation_insights — this is where n8n stores analyzed lead data
+    // (qualified_lead, email_address, phone, summary, sentiment, lead_quality_score etc.)
     const { data, error } = await supabase
-      .from("n8n_chat_histories")
+      .from("conversation_insights")
       .select("*")
       .order("created_at", { ascending: false })
 
@@ -58,7 +60,7 @@ export async function fetchLeadById(id: number) {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase.from("n8n_chat_histories").select("*").eq("id", id).single()
+    const { data, error } = await supabase.from("conversation_insights").select("*").eq("id", id).single()
 
     if (error) {
       console.error("Error fetching lead:", error)
@@ -125,7 +127,7 @@ export async function getLeadsSummary() {
   try {
     const supabase = await createClient()
 
-    const { data: leads, error } = await supabase.from("n8n_chat_histories").select("*")
+    const { data: leads, error } = await supabase.from("conversation_insights").select("*")
 
     if (error) {
       console.error("Error fetching leads summary:", error)

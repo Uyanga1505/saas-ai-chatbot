@@ -67,6 +67,10 @@ export function ConversationHistory({ sessionId, conversationId }: ConversationH
     const msgData = message.message
     const senderId = message.sender_id?.toLowerCase() || ""
 
+    // Check type field (n8n LangChain format: {type: "human"/"ai", content: "..."})
+    if (msgData?.type === "human") return true
+    if (msgData?.type === "ai") return false
+
     // Check role field
     if (msgData?.role === "user" || msgData?.role === "human") return true
     if (msgData?.role === "assistant" || msgData?.role === "bot" || msgData?.role === "ai") return false
