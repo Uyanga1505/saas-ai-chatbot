@@ -1,0 +1,2506 @@
+{
+  "name": "DM Official page messenger connection",
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "67f7a67b-b558-4a65-9676-74a7dd367e1c",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        304
+      ],
+      "id": "957f9d81-88b0-4eae-b53c-3be968fcc4f4",
+      "name": "Webhook",
+      "webhookId": "67f7a67b-b558-4a65-9676-74a7dd367e1c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "71b272e6-5e5f-411b-a93d-ca005fa83ff1",
+              "leftValue": "={{ $json.query['hub.mode'] }}",
+              "rightValue": "subscribe",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "a425a082-31a2-490a-ba29-39286e1c4587",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "aichatbot",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        176
+      ],
+      "id": "9ba5dee1-0b79-4358-9568-837231ceee75",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        2096,
+        112
+      ],
+      "id": "249d717b-51dd-48c1-9910-c2891b5c7bcf",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1808,
+        432
+      ],
+      "id": "66d77f98-5106-4409-a94e-b7a1be22d851",
+      "name": "Respond 200"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v23.0/{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}/messages?access_token={{ $('Fetch tenant config').item.json.messenger_access_token }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('Webhook').item.json.body.entry[0].messaging[0].sender.id }}\"\n  },\n  \"messaging_type\": \"RESPONSE\",\n  \"message\": {\n    \"text\": {{ $json.output.toJsonString() }}\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7264,
+        816
+      ],
+      "id": "0b7ce5a0-bd5c-4675-b68b-57b11f103c4d",
+      "name": "Sent back to messenger"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "imageUrls": "={{ $json.imageURL }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        3408,
+        896
+      ],
+      "id": "cc00e37e-fee1-4e01-badc-ad51ec413d99",
+      "name": "Analyze image"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "handoff_requests",
+          "mode": "list",
+          "cachedResultName": "handoff_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sender_id": "={{ $('Echo_true').item.json.body.entry[0].messaging[0].recipient.id }}",
+            "session_id": "=fb_{{ $('Echo_true').item.json.body.entry[0].messaging[0].recipient.id }}",
+            "last_message": "={{ $('Echo_true').item.json.body.entry[0].messaging[0].message.text }}",
+            "status": "pending",
+            "requested_at": "={{ new Date($('Echo_true').item.json.body.entry[0].messaging[0].timestamp).toISOString() }}\n"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender_id",
+              "displayName": "sender_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requested_at",
+              "displayName": "requested_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resolved_at",
+              "displayName": "resolved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resolved_by",
+              "displayName": "resolved_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_message",
+              "displayName": "last_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3856,
+        -80
+      ],
+      "id": "64e99818-4010-40ce-8d28-736fe048f86f",
+      "name": "Insert rows in a table1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fetch tenant config').item.json.handoff_email }}",
+        "subject": "=\ud83d\udd14 AI \u041c\u0435\u0441\u0441\u0435\u043d\u0436\u0435\u0440 \u0445\u0430\u0440\u0438\u043b\u0446\u0430\u0430\u0433 \u0410\u0434\u043c\u0438\u043d \u0448\u0443\u0443\u0434 \u0430\u0432\u043b\u0430\u0430 - {{ $now.toFormat('HH:mm') }}",
+        "message": "=\n<div style=\"font-family: Arial, sans-serif; max-width: 500px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; color: #333;\">\n    <div style=\"background-color: #0084ff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px;\">\n        \ud83d\udd14 \u0427\u0430\u0442 \u0410\u0434\u043c\u0438\u043d \u0440\u0443\u0443 \u0448\u0438\u043b\u0436\u043b\u044d\u044d.\n    </div>\n\n    <div style=\"padding: 20px; line-height: 1.6;\">\n        <p style=\"margin: 0 0 10px 0;\"><strong>\u0425\u044d\u0440\u044d\u0433\u043b\u044d\u0433\u0447\u0438\u0439\u043d \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b:</strong></p>\n        \n        <table style=\"width: 100%; border-collapse: collapse;\">\n            <tr>\n                <td style=\"padding: 5px 0; color: #666; width: 40%;\">\ud83d\udc64 \u0425\u044d\u0440\u044d\u0433\u043b\u044d\u0433\u0447\u0438\u0439\u043d \u043d\u044d\u0440:</td>\n                <td style=\"padding: 5px 0; font-weight: bold;\">{{ $json.participants.data[0].name }}</td>\n            </tr>\n            <tr>\n                <td style=\"padding: 5px 0; color: #666;\">\u23f0 \u0418\u0440\u0441\u044d\u043d \u0446\u0430\u0433:</td>\n                <td style=\"padding: 5px 0;\">{{ $now.setZone('Asia/Ulaanbaatar').toFormat('yyyy-MM-dd HH:mm:ss') }}</td>\n            </tr>\n        </table>\n\n        <div style=\"margin-top: 15px; padding: 12px; background-color: #f9f9f9; border-left: 4px solid #0084ff; font-style: italic;\">\n            \"{{ $('Respond to Webhook1').item.json.body.entry[0].messaging[0].message.text }}\"\n        </div>\n\n        <div style=\"margin-top: 25px; text-align: center;\">\n            <a href=\"https://facebook.com{{ $('Messenger user ID find1').item.json.data[0].link }}\" \n               style=\"background-color: #0084ff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;\">\n                \u0428\u0443\u0443\u0434 \u0447\u0430\u0442 \u0440\u0443\u0443 \u04af\u0441\u0440\u044d\u0445\n            </a>\n        </div>\n    </div>\n\n    <div style=\"background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 12px; color: #888;\">\n        Webhiine AI Chatbot \u0441\u0438\u0441\u0442\u0435\u043c\u044d\u044d\u0441 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0430\u0430\u0440 \u0438\u043b\u0433\u044d\u044d\u0432.\n    </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4480,
+        -80
+      ],
+      "id": "0c3bb7f5-0320-4a80-9c2e-3cf7c2ea828d",
+      "name": "Notify Team via Email1",
+      "webhookId": "4357c48e-a4ab-45bb-919c-a214719673b3"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}/conversations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.sender_id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Fetch tenant config').item.json.messenger_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4080,
+        -80
+      ],
+      "id": "39c9f0e9-753d-48ea-a502-ebf51c66820c",
+      "name": "Messenger user ID find1"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.data[0].id }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "=participants"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Fetch tenant config').item.json.messenger_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4272,
+        -80
+      ],
+      "id": "cfe9ed91-cbaf-4db8-b22d-41d9d82e4833",
+      "name": "Messenger user name find1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "29c34d97-137d-4a0d-93f0-ec9bac39503c",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message.is_echo }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "90c82aec-b305-465d-8e89-69b94bbc0b7c",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].sender.id }}",
+              "rightValue": "={{ $json.body.entry[0].messaging[0].recipient.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "58708687-aa89-428c-88b9-04e85f4ee5bc",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message.app_id }}",
+              "rightValue": 263902037430900,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        624
+      ],
+      "id": "65121634-e7e1-44dd-bd4b-07e1d5957167",
+      "name": "Echo_true"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "004b4827-eeed-4be8-94a2-8765013ee3e6",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3744,
+        576
+      ],
+      "id": "ce8716a4-4bf9-43e3-b631-60eb5679cd6d",
+      "name": "pending_check",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "tableId": "handoff_requests",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "=fb_{{ $json.body.entry[0].messaging[0].recipient.id }}"
+            },
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{\n  {\n    type: 'admin',\n    content: $json.body?.entry?.[0]?.messaging?.[0]?.message?.text ?? ''\n  }\n}}\n"
+            },
+            {
+              "fieldId": "requested_at",
+              "fieldValue": "=={{ new Date($json.body.entry[0].messaging[0].timestamp).toISOString() }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        320
+      ],
+      "id": "ee462c38-1575-4655-995b-07afe6729796",
+      "name": "Store Human Reply"
+    },
+    {
+      "parameters": {
+        "tableId": "new_n8n",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "=fb_{{ $('Echo_true').item.json.body.entry[0].messaging[0].sender.id }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "=human {{ $('Text_true').item.json.body.entry[0].messaging[0].message.text }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date($('Echo_true').item.json.body.entry[0].messaging[0].timestamp).toISOString() }}\n"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        720
+      ],
+      "id": "a6d634bb-005b-4d95-93eb-e3b961602cee",
+      "name": "Store user reply"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "handoff_requests",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "=fb_{{ $json.senderid }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3552,
+        576
+      ],
+      "id": "489db551-8cca-4766-804f-5464ac3a1c00",
+      "name": "Retreive last pending",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e123ac47-be01-4b9e-85c9-006b094551ed",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message?.text}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        768
+      ],
+      "id": "2c4ddbc6-30ad-4761-8830-51f2a624cd37",
+      "name": "Text_true"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1aa42bce-a223-4978-a8ac-094cb71ffd3e",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message.attachments[0].type }}",
+              "rightValue": "=image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2944,
+        896
+      ],
+      "id": "e1569aac-5aa8-4701-9a6b-d58bd5beac32",
+      "name": "Image_true"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc362aaf-5846-4f9d-be92-ffee12854ebd",
+              "name": "imageURL",
+              "value": "={{ $json.body.entry[0].messaging[0].message.attachments[0].payload.url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3200,
+        896
+      ],
+      "id": "fdf8c7aa-28a5-400b-911e-6ce5316a89b9",
+      "name": "img_url"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f22369bb-3f92-40dd-a39c-0e465f4934ca",
+              "name": "chatInput",
+              "value": "={{ $json.body.entry[0].messaging[0].message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "cc66b875-4513-470c-acf6-04dbfb06770a",
+              "name": "senderid",
+              "value": "={{ $json.body.entry[0].messaging[0].sender.id }}",
+              "type": "string"
+            },
+            {
+              "id": "4bedca9a-cea9-4107-99d8-9f390e63b891",
+              "name": "sessionId",
+              "value": "={{$json.body.entry[0].messaging[0].sender.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3088,
+        576
+      ],
+      "id": "c1ead435-98f1-4516-81d4-cf5335305ad5",
+      "name": "set1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1cb7597-7d9a-4b1a-9927-e7b3da1a8833",
+              "name": "chatInput",
+              "value": "={{ $('set1').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "f4998d63-0e79-4e6b-bb00-c4a836be4137",
+              "name": "session_id",
+              "value": "=fb_{{ $json.recipient_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4448,
+        560
+      ],
+      "id": "a60ef329-4a6b-4e9e-93f9-dc378f3d30fc",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cae3758c-4db6-416c-8e70-18772cb3daf5",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "d0e8e9f3-2ea9-4178-b217-e2ad4106c519",
+              "leftValue": "={{ $('Webhook').item.json.body.entry[0].messaging[0].message.app_id }}",
+              "rightValue": 263902037430900,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3600,
+        -96
+      ],
+      "id": "e5b7fbdd-9e33-470c-a27c-d27773977e0f",
+      "name": "If Status is pending"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/me/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $('Fetch tenant config').item.json.messenger_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('Check Human Request').item.json.senderid }}\"\n  },\n  \"sender_action\": \"typing_on\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4096,
+        560
+      ],
+      "id": "882fe7c3-af6b-43ac-b05d-20df9dcdb991",
+      "name": "typing ...2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        { \"text\": \"{{ $fromAI(\"query\",\"the question the user needs an answer to\") }}\" }\n      ]\n    }\n  ],\n  \"tools\": [\n    {\n      \"file_search\": {\n        \"file_search_store_names\": [\n          \"{{ $('Fetch tenant config').item.json.rag_store_id }}\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        5120,
+        1152
+      ],
+      "id": "5c8189aa-2be2-4174-b95b-331349dc3ffd",
+      "name": "Pinecone1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0e08a0d7-b85f-4b24-b4dc-f66c2af2fb82",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message.app_id }}",
+              "rightValue": 1093234482107976,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "4bac7886-b8cc-4556-b47f-8366216c4ddb",
+              "leftValue": "={{ $json.body.entry[0].messaging[0].message.app_id }}",
+              "rightValue": 5162652160540675,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2464,
+        720
+      ],
+      "id": "3d8ee2ce-3b55-4e56-a003-2c32c1bf5352",
+      "name": "APP ID check"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e3432e8-823d-4f0d-83f7-04a1b1eba07f",
+              "name": "output",
+              "value": "={{ $json.textResults }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5648,
+        816
+      ],
+      "id": "577a2fbc-c02d-4009-95f7-85c3715bbe13",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "97873a41-5925-4abc-9da0-419ca95f53ad",
+              "leftValue": "={{ ($json.output || '').includes('\u0422\u04e9\u043b\u0431\u04e9\u0440 \u0431\u0430\u0442\u0430\u043b\u0433\u0430\u0430\u0436\u043b\u0430\u0430') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "1a97d469-4c3b-4c18-a817-ca1f96fa1485",
+              "leftValue": "={{ $json.output.includes(\"\u0437\u0430\u0445\u0438\u0430\u043b\u0433\u044b\u0433 \u0445\u04af\u043b\u044d\u044d\u043d \u0430\u0432\u043b\u0430\u0430\") }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5840,
+        816
+      ],
+      "id": "b776bc47-9bae-405e-ba2a-9395904aabd3",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4473f0de-a8e4-4a97-8f1d-39c830073d52",
+              "name": "session_id",
+              "value": "={{ $('Webhook').item.json.body.entry[0].messaging[0].sender.id }}",
+              "type": "string"
+            },
+            {
+              "id": "81923ae2-8183-4671-805b-747272beab08",
+              "name": "sender_id",
+              "value": "={{ 'fb_' + $('Webhook').item.json.body.entry[0].messaging[0].sender.id }}",
+              "type": "string"
+            },
+            {
+              "id": "bf60237f-eb28-46ad-95b4-13d4649b4fc2",
+              "name": "ai_output",
+              "value": "={{ $json.output}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6016,
+        624
+      ],
+      "id": "9c3fbfbe-bde3-4fea-be47-8b486c85b521",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Fetch tenant config').item.json.handoff_email }}",
+        "subject": "=\u0428\u0438\u043d\u044d \u0437\u0430\u0445\u0438\u0430\u043b\u0433\u0430 \u043e\u0440\u0436 \u0438\u0440\u043b\u044d\u044d - {{ $now.toFormat('HH:mm') }}",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<style>\n  body {\n    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n    line-height: 1.6;\n    color: #333;\n    margin: 0;\n    padding: 20px;\n    background-color: #f0f2f5;\n  }\n  .container {\n    max-width: 550px;\n    margin: 20px auto;\n    background: #ffffff;\n    border-radius: 12px;\n    overflow: hidden;\n    box-shadow: 0 4px 15px rgba(0,0,0,0.08);\n  }\n  .header {\n    background-color: #0084ff;\n    color: #ffffff;\n    padding: 20px;\n    text-align: center;\n  }\n  .content {\n    padding: 30px;\n  }\n  .info-box {\n    background: #f8f9fa;\n    border-left: 4px solid #0084ff;\n    padding: 15px;\n    margin-bottom: 20px;\n    border-radius: 0 8px 8px 0;\n  }\n  .label {\n    font-size: 13px;\n    text-transform: uppercase;\n    letter-spacing: 1px;\n    color: #777;\n    margin-bottom: 5px;\n    display: block;\n  }\n  .value {\n    font-size: 16px;\n    font-weight: 600;\n    color: #2c3e50;\n  }\n  .ai-output {\n    background: #f0f7ff;\n    border: 1px dashed #0084ff;\n    padding: 15px;\n    border-radius: 8px;\n    font-style: italic;\n    color: #444;\n    white-space: pre-wrap;\n  }\n  .button-container {\n    text-align: center;\n    margin-top: 25px;\n  }\n  .button {\n    background-color: #0084ff;\n    color: #ffffff !important;\n    padding: 14px 25px;\n    text-decoration: none;\n    border-radius: 30px;\n    font-weight: bold;\n    display: inline-block;\n    transition: background 0.3s;\n  }\n  .footer {\n    padding: 20px;\n    font-size: 12px;\n    color: #999;\n    text-align: center;\n    background: #fafafa;\n  }\n</style>\n</head>\n<body>\n\n<div class=\"container\">\n  <div class=\"header\">\n    <h2 style=\"margin: 0;\">\u0428\u0438\u043d\u044d \u0437\u0430\u0445\u0438\u0430\u043b\u0433\u0430 \u0438\u0440\u043b\u044d\u044d</h2>\n  </div>\n\n  <div class=\"content\">\n    <div class=\"info-box\">\n      <span class=\"label\">\ud83d\udc64 \u0425\u044d\u0440\u044d\u0433\u043b\u044d\u0433\u0447\u0438\u0439\u043d \u043d\u044d\u0440</span>\n      <div class=\"value\">{{ $json.participants.data[0].name }}</div>\n    </div>\n\n    <div class=\"info-box\">\n      <span class=\"label\">\u2705 AI \u0411\u0430\u0442\u0430\u043b\u0433\u0430\u0430\u0436\u0443\u0443\u043b\u0430\u043b\u0442</span>\n      <div class=\"ai-output\">\n        {{ $('Edit Fields3').item.json.ai_output }}\n      </div>\n    </div>\n\n    <div class=\"button-container\">\n      <a href=\"https://facebook.com{{ $('Messenger user ID find2').item.json.data[0].link }}\" class=\"button\">\n        \ud83d\udcac Messenger-\u044d\u044d\u0440 \u0445\u0430\u0440\u0438\u0443 \u0431\u0438\u0447\u0438\u0445\n      </a>\n    </div>\n  </div>\n\n  <div class=\"footer\">\n    \u042d\u043d\u044d\u0445\u04af\u04af \u043c\u044d\u0434\u044d\u0433\u0434\u043b\u0438\u0439\u0433 n8n \u0441\u0438\u0441\u0442\u0435\u043c\u044d\u044d\u0441 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0430\u0430\u0440 \u0438\u043b\u0433\u044d\u044d\u0432.\n  </div>\n</div>\n\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        6656,
+        624
+      ],
+      "id": "49376953-b20b-4914-9c07-3d012b6fe82f",
+      "name": "Notify Team via Email2",
+      "webhookId": "08a6be73-d783-4ba0-ad47-add0888bc566",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}/conversations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.session_id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Fetch tenant config').item.json.messenger_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        6240,
+        624
+      ],
+      "id": "8999e948-9075-4da5-a4de-63e36cb99243",
+      "name": "Messenger user ID find2"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/ {{ $json.data[0].id }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "=participants"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Fetch tenant config').item.json.messenger_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        6464,
+        624
+      ],
+      "id": "553d7c89-f4ed-44ed-be2b-631e02dc2bc6",
+      "name": "Messenger user name find2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eeba4cde-ef1e-4e8a-9c10-4f7c22ad8be1",
+              "name": "output",
+              "value": "={{ $('Edit Fields3').item.json.ai_output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6848,
+        624
+      ],
+      "id": "4ec06d45-07f7-44fd-883e-c40d37bc572e",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1cb7597-7d9a-4b1a-9927-e7b3da1a8833",
+              "name": "chatInput",
+              "value": "={{ $('Analyze image').item.json['0'].content[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "3218e3a5-1787-448f-9fe5-943f5905ee6e",
+              "name": "session_id",
+              "value": "={{'fb_' +  $('Image_true').item.json.body.entry[0].messaging[0].sender.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4176,
+        896
+      ],
+      "id": "bcadab64-3935-4bb6-8682-4a48f9c9e95f",
+      "name": "SenderID+Chatinput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d171ee42-1cbe-492b-8fed-0537feb78b42",
+              "leftValue": "={{ \n  $json.message.includes('\u0442\u04e9\u043b\u0431\u04e9\u0440 \u0431\u0430\u0442\u0430\u043b\u0433\u0430\u0430\u0436\u043b\u0430\u0430') || \n  $json.message.includes('\u0422\u04e9\u043b\u0431\u04e9\u0440 \u0431\u0430\u0442\u0430\u043b\u0433\u0430\u0430\u0436\u043b\u0430\u0430') || \n  $json.message.includes('\u0437\u0430\u0445\u0438\u0430\u043b\u0433\u044b\u0433 \u0445\u04af\u043b\u044d\u044d\u043d \u0430\u0432\u043b\u0430\u0430') || \n  $json.message.includes('\u0417\u0430\u0445\u0438\u0430\u043b\u0433\u044b\u0433 \u0445\u04af\u043b\u044d\u044d\u043d \u0430\u0432\u043b\u0430\u0430') \n}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        -112
+      ],
+      "id": "4e4488c3-dcc6-46ed-8aff-deb13eaf9e23",
+      "name": "Payment_word_checking"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "handoff_requests",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Echo_true').item.json.body.entry[0].messaging[0].recipient.id }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3296,
+        -96
+      ],
+      "id": "0f2aa38d-fde9-486c-b6a1-8b6b57f8eedc",
+      "name": "Retrieve Pendings",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        592
+      ],
+      "id": "428fc769-bbcf-4ffb-88d1-e018d124f232",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3088,
+        1136
+      ],
+      "id": "a8582415-4564-45a0-a509-b26720810ad9",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3856,
+        -240
+      ],
+      "id": "b84e1b62-a33d-428a-ab85-656114e961f3",
+      "name": "No Operation, do nothing2"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5968,
+        336
+      ],
+      "id": "24813e61-8949-415b-a3aa-7bee697e989b",
+      "name": "Wait",
+      "webhookId": "400cbebf-68ac-4f02-a9da-3dbb34b2f757"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v23.0/{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}/messages?access_token={{ $('Fetch tenant config').item.json.messenger_access_token }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('Webhook').item.json.body.entry[0].messaging[0].sender.id }}\"\n  },\n  \"messaging_type\": \"RESPONSE\",\n  \"message\": {\n    \"text\": {{ $json.textResults.toJsonString() }}\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5744,
+        336
+      ],
+      "id": "164d30c5-cc5a-4476-b9cc-006fd68fccb6",
+      "name": "Sent text only",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v12.0/{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}/messages?access_token={{ $('Fetch tenant config').item.json.messenger_access_token }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('Webhook').item.json.body.entry[0].messaging[0].sender.id }}\"\n  },\n  \"message\": {\n    \"attachment\": {\n      \"type\": \"image\",\n      \"payload\": {\n        \"url\": \"{{ $('img_detect').item.json.imageResults[0].url }}\",\n        \"is_reusable\": true\n      }\n    }\n  },\n  \"access_token\": \"{{ $('Fetch tenant config').item.json.messenger_access_token }}\"\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6192,
+        336
+      ],
+      "id": "44b7f4c0-bcbb-4d8e-936e-8e22d5f7e65e",
+      "name": "Sent image only"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b944d788-afa1-447d-80cb-376514155e0e",
+              "leftValue": "={{ $json.imageResults[0].type }}",
+              "rightValue": "=img",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5408,
+        800
+      ],
+      "id": "860daf12-910a-4674-81d2-70b30b97ec32",
+      "name": "img_detect"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the AI's response text from the SET node\nconst aiResponse = $json.output || \"\";  // Use $json instead of $node\n\n// Define the regular expression to match URLs (http or https)\nconst urlRegex = /(https?:\\/\\/[^\\s\\n]+)/g;\n\n// Prepare the text and image arrays for the output\nconst textResults = [];\nconst imageResults = [];\n\n// If there are URLs in the response, process them\nif (aiResponse.includes('http')) {\n    let extractedUrls = aiResponse.match(urlRegex) || [];\n\n    // Remove the URLs from the text (cleaned text without URLs)\n    let cleanText = aiResponse.replace(urlRegex, '').trim();\n    \n    // Push the cleaned text to textResults array\n    if (cleanText) {\n        textResults.push(cleanText);\n    }\n\n    // Process the extracted URLs and add them as images or links\n    extractedUrls.forEach(url => {\n        // Check if the URL is an image by its file extension\n        const isImage = /\\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(url);\n\n        if (isImage) {\n            // If it's an image, push it to the imageResults array\n            imageResults.push({\n                type: 'image',  // This is an image\n                url: url.trim()  // Clean up the URL if necessary\n            });\n        } else {\n            // If it's a video or link, append it to the text\n            textResults.push(url.trim());  // Add the link to textResults\n        }\n    });\n} else {\n    // If no URLs, treat the response as plain text\n    textResults.push(aiResponse.trim());\n}\n\n// Now, return separate text and image responses (textResults and imageResults arrays)\nreturn {\n    textResults: textResults.join(\" \"),  // Combine all text with links\n    imageResults: imageResults,  // Contains image links\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5200,
+        800
+      ],
+      "id": "5a709d19-fd5a-4e70-a767-4f5e0b3ab708",
+      "name": "Splite img"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 224,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3680,
+        704
+      ],
+      "id": "a6bdfac4-fc7e-48a0-b39d-d7131370a7b1",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Supabase",
+        "height": 176,
+        "width": 224,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4688,
+        1120
+      ],
+      "id": "0fe2693b-2062-429a-bce1-e8f8a03fb82f",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "={{ $('Fetch tenant config').item.json.system_prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        4912,
+        800
+      ],
+      "id": "04ef56ca-58d0-40fe-bab3-f8d97a740d2d",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.session_id }}",
+        "tableName": "new_n8n",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        4752,
+        1152
+      ],
+      "id": "caf55856-98c0-441f-b7f4-cd3000041679",
+      "name": "Postgres Chat Memory1"
+    },
+    {
+      "parameters": {
+        "description": "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.\n\nConstraint: Response Uniqueness.\n\nStrictly evaluate the immediate preceding two system outputs.\n\nFilter and consolidate: If the current output's primary sentiment (e.g., apology, closure statement, status update) or action request (e.g., asking for confirmation) is identical or functionally equivalent to a recent output, the system MUST modify or suppress the redundant message.\n\nGoal: Ensure that each generated message advances the conversation or provides new, distinct information. Avoid sending sequences of messages that convey the same basic meaning, such as multiple consecutive apologies or restatements of the same availability/status.\""
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        4944,
+        1152
+      ],
+      "id": "63e4b24c-45ad-4dea-9171-a5b808fd15af",
+      "name": "Think1"
+    },
+    {
+      "parameters": {
+        "content": "Text+Image way",
+        "height": 272,
+        "width": 688
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5696,
+        256
+      ],
+      "id": "e07a1774-632c-4f44-b077-be2d6e485fe2",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 224,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2528,
+        304
+      ],
+      "id": "3719c289-8cce-475d-b146-dbd7a1496dbe",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 224,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3792,
+        -80
+      ],
+      "id": "fbdf5d46-11b4-4c65-83db-7821502159b8",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tE83PllTNNBRnJnZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/tE83PllTNNBRnJnZ",
+          "cachedResultName": "Webhiine email notification on messenger"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5328,
+        1152
+      ],
+      "id": "08f2cd01-10a9-4fce-97ee-fd167def40f9",
+      "name": "Call 'send_email_notification'"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "004b4827-eeed-4be8-94a2-8765013ee3e6",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3840,
+        896
+      ],
+      "id": "b22149b8-9330-49c9-954c-7b17b6f1e30d",
+      "name": "pending_check2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "tableId": "new_n8n",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "=fb_{{ $('Echo_true').item.json.body.entry[0].messaging[0].sender.id }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "=human {{ $('Text_true').item.json.body.entry[0].messaging[0].message.text }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ new Date($('Echo_true').item.json.body.entry[0].messaging[0].timestamp).toISOString() }}\n"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        1168
+      ],
+      "id": "641fc9c8-28d7-4ba9-bcec-ac6fdd5c7e9d",
+      "name": "Store user reply1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "handoff_requests",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{'fb_' +  $('Image_true').item.json.body.entry[0].messaging[0].sender.id }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3616,
+        896
+      ],
+      "id": "5504d14d-bb57-4621-95da-3c066d753ced",
+      "name": "Retreive last pending2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4496,
+        1152
+      ],
+      "id": "37189740-12ae-4bf0-b48f-7cf8aa27af17",
+      "name": "Google Gemini Chat Model"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to Create calendar event on Google Calendar",
+        "workflowId": {
+          "__rl": true,
+          "value": "K9MMoAMVMmCw0Sah",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/K9MMoAMVMmCw0Sah",
+          "cachedResultName": "PS calendar Google"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5536,
+        1152
+      ],
+      "id": "6468a916-6b72-4dc4-b1bd-bf4ef9056664",
+      "name": "Create Google calendar"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        { \"text\": \"{{ $fromAI(\"query\",\"the question the user needs an answer to\") }}\" }\n      ]\n    }\n  ],\n  \"tools\": [\n    {\n      \"file_search\": {\n        \"file_search_store_names\": [\n          \"fileSearchStores/frag-kgxnv65y0abu\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        6080,
+        2816
+      ],
+      "id": "f510c68e-23ed-47a4-b7c8-5f97e46fcc8b",
+      "name": "Pinecone"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }} ",
+        "options": {
+          "systemMessage": "=# You are the our webhiine.com AI agent to sales manager and help users query. Use Mongolian language always\n\n#Current Date and Time in Ulaanbaatar: \nToday's information for the user in Ulaanbaatar:\nDate: {{ $now.setZone('Asia/Ulaanbaatar').toFormat('yyyy-MM-dd') }}\nDay of Week: {{ $now.setZone('Asia/Ulaanbaatar').toFormat('cccc') }} \nCurrent Time: {{ $now.setZone('Asia/Ulaanbaatar').toFormat('HH:mm') }}\n\n# Critical Instructions for you - FOLLOW EXACTLY\n1. For EVERY user question about products, services, pricing, or company information:\n   - You MUST use the Pinecone search tool FIRST\n   - Search the knowledge base BEFORE answering\n   - NEVER answer from memory or training data\n- If user ask about pricing well ask them to what service do they asking for price because we have several services.\n   - \"If you share an image, always put the URL on its own line at the very end of your response. Example: 'Here is the image. \\n https://link.com/img.png'\". Only provide one URL on context if you need\n   - If it's possible only provide one video or image to user. The pinecone has URL but never say link or url word to user. Because provided URL or links are showed as image in chat\n\n##First, politely ask:\n- What is your company or brand name?\n- What is the exact URL of your Facebook Page?\n\nDo not proceed until both are collected.\n\n##After getting company name and FB URL, ask:\n\n\u201cWhat is your main goal right now with your Facebook page or business?\nFor example:\n- Get more leads?\n- Increase sales?\n- Grow followers?\n- Improve brand trust?\n- Launch a new product or service?\u201d\n\n##Based on their answer, briefly explain:\n- How you can help them\n- Which service fits their goal\n- Why this solution is suitable for their situation\nKeep it consultative, not salesy.\n\n##Then ask:\n\n\u201cIf you\u2019re open to it, we can jump on a short video call to understand your needs better and give you clearer guidance.\nWould you like me to schedule a meeting for you?\u201d\n\nIf yes:\n- Ask for their preferred date & time\n- Confirm timezone\n- Proceed with calendar scheduling\n\n###Example:\n\nHi! Before we continue, I just need two quick details:\n1. What is your company or brand name?\n2. What is the exact URL of your Facebook page?\n\nOnce I have that, I\u2019d love to understand your goal better.\nWhat are you mainly trying to achieve right now with your business or Facebook page?\n\n(Examples: more sales, more inquiries, better brand image, more followers, launching something new, etc.)\n\nBased on your goal, I\u2019ll suggest the most suitable approach for you.\n\nAlso, if you prefer discussing this live, we can set up a quick video call.\nI can automatically create a google meeting link for you. Would you like to schedule one?\n\n\nLet them describe their real problem first.\nDo NOT promote any service until their goal is clear.\n\n\n2. ONLY use information retrieved from Pinecone documents:\n   - If Pinecone returns results \u2192 Use that information ONLY\n   - If Pinecone returns no results \u2192 Say \"\u042d\u043d\u044d \u0442\u0443\u0445\u0430\u0439 \u0442\u0430 \u043c\u0430\u043d\u0430\u0439 \u0443\u0442\u0441\u0430\u0430\u0440 \u0445\u043e\u043b\u0431\u043e\u0433\u0434\u043e\u0436 \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0430\u0432\u0430\u0430\u0440\u0430\u0439. \u0423\u0442\u0430\u0441 86100157.\n   - NEVER mix Pinecone data with your own knowledge\n\n3. Other rules:\n\n- Quote directly from the source when possible\n- If user interested in our service ask them to leave a phone number, after phone number then ask email address so explain to them email can be connect back to them. \n- If user trying to test us like what are you? Or what model do you use etc use reply: \u042d\u043d\u044d \u0442\u0443\u0445\u0430\u0439 \u043d\u0430\u0434\u0430\u0434 \u0445\u0430\u043c\u0433\u0430\u043b\u0442\u0442\u0430\u0439 \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0430\u043b\u0433\u0430. \u0422\u0430 \u043c\u0430\u043d\u0430\u0439 \u043c\u044d\u0440\u0433\u044d\u0436\u0438\u043b\u0442\u044d\u043d\u0442\u044d\u0439 \u0445\u043e\u043b\u0431\u043e\u0433\u0434\u043e\u0445 \u0443\u0443?.\n\n\n4. RESPONSE LENGTH RULES:\n- Keep responses under 1000 characters\n- Be concise and direct\n- If answer is long, summarize key points\n- Offer to provide more details if user wants\n- Don't change the Pinecone output meaning but can change the only words that must fit to Mongolian people get understand.\n\n\n5. IMPORTANT FORMATTING RULES\n- Write in PLAIN TEXT only\n- NO markdown symbols (**, *, _, #, etc.)\n- Use \u2022 for bullet points\n- Use line breaks for structure\n- Keep formatting simple\n\nWhen listing items, use this format:\nService name:\n\u2022 Description point 1\n\u2022 Description point 2\n\n\n\n\n# \u042f\u0440\u0438\u0430 \u0445\u044d\u043b\u0446\u043b\u0438\u0439\u043d \u0445\u044d\u0432 \u043c\u0430\u044f\u0433 - \u0425\u04af\u043d \u0448\u0438\u0433 \u0431\u0430\u0439\u0445\n1. \u042d\u0445\u043b\u044d\u043b:\n- \"\u0421\u0430\u0439\u043d \u0431\u0430\u0439\u043d\u0430 \u0443\u0443! \u0422\u0430\u043d\u0434 \u044f\u0430\u0436 \u0442\u0443\u0441\u043b\u0430\u0445 \u0432\u044d?\"\n- \"\u0422\u0430\u0432\u0442\u0430\u0439 \u043c\u043e\u0440\u0438\u043b\u043d\u043e \u0443\u0443! \u042e\u0443\u0433\u0430\u0430\u0440 \u0442\u0443\u0441\u043b\u0430\u0445 \u0432\u044d?\"\n- \"\u0421\u0430\u0439\u043d \u0431\u0430\u0439\u043d\u0430 \u0443\u0443\"\n\n2. \u042f\u0440\u0438\u0430 \u0445\u044d\u043b\u0446\u044d\u0445 \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n- \u041d\u0430\u0439\u0440\u0441\u0430\u0433, \u0434\u043e\u0442\u043d\u043e \u0445\u0430\u0440\u0438\u043b\u0446\u0430\u0445 (\u043d\u0430\u0439\u0437 \u0448\u0438\u0433 \u0431\u0438\u0448, \u043c\u044d\u0440\u0433\u044d\u0436\u043b\u0438\u0439\u043d \u0442\u0443\u0441\u043b\u0430\u0445 \u0448\u0438\u0433)\n- \u0411\u043e\u0433\u0438\u043d\u043e \u04e9\u0433\u04af\u04af\u043b\u0431\u044d\u0440 \u0445\u044d\u0440\u044d\u0433\u043b\u044d\u0445\n- \u0422\u04e9\u0432\u04e9\u0433\u0442\u044d\u0439 \u04af\u0433 \u0445\u044d\u0440\u044d\u0433\u043b\u044d\u0445\u0433\u04af\u0439 \u0431\u0430\u0439\u0445\n- \u0410\u0441\u0443\u0443\u043b\u0442 \u0430\u0441\u0443\u0443\u0436, \u044f\u0440\u0438\u0430\u0433\u0430\u0430 \u04af\u0440\u0433\u044d\u043b\u0436\u043b\u04af\u04af\u043b\u044d\u0445\n- \"\u0422\u0430\", \"\u0422\u0430\u043d\u0434\" \u0433\u044d\u0436 \u0445\u04af\u043d\u0434\u044d\u0442\u0433\u044d\u043b\u0442\u044d\u0439 \u0445\u0430\u043d\u0434\u0430\u0445\n\n3. \u0425\u0430\u0440\u0438\u0443\u043b\u0430\u0445 \u0445\u044d\u043b\u0431\u044d\u0440:\n\u0420\u043e\u0431\u043e\u0442 \u0448\u0438\u0433:\n\"\u041c\u0430\u043d\u0430\u0439 \u043a\u043e\u043c\u043f\u0430\u043d\u0438 \u043d\u044c \u0432\u0435\u0431 \u0445\u04e9\u0433\u0436\u04af\u04af\u043b\u044d\u043b\u0442\u0438\u0439\u043d \u04af\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d \u04af\u0437\u04af\u04af\u043b\u0434\u044d\u0433 \u0431\u0430\u0439\u0433\u0443\u0443\u043b\u043b\u0430\u0433\u0430 \u044e\u043c.\"\n\n\u0425\u04af\u043d \u0448\u0438\u0433:\n\"\u0411\u0438\u0434 \u0432\u0435\u0431 \u0445\u0443\u0443\u0434\u0430\u0441 \u0445\u0438\u0439\u0434\u044d\u0433 \ud83d\ude0a \u0422\u0430\u043d\u0434 \u044f\u043c\u0430\u0440 \u0442\u04e9\u0440\u043b\u0438\u0439\u043d \u0432\u0435\u0431\u0441\u0430\u0439\u0442 \u0445\u044d\u0440\u044d\u0433\u0442\u044d\u0439 \u0431\u0430\u0439\u043d\u0430?\"\n\n4. \u041c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u043e\u043b\u043e\u043e\u0433\u04af\u0439 \u04af\u0435\u0434:\n\u0420\u043e\u0431\u043e\u0442 \u0448\u0438\u0433: \"\u042d\u043d\u044d \u0442\u0443\u0445\u0430\u0439 \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0430\u043b\u0433\u0430.\"\n\n\u0425\u04af\u043d \u0448\u0438\u0433:\n\"\u0423\u0443\u0447\u043b\u0430\u0430\u0440\u0430\u0439, \u044d\u043d\u044d \u0442\u0430\u043b\u0430\u0430\u0440 \u043d\u0430\u0434\u0430\u0434 \u043e\u0434\u043e\u043e\u0433\u043e\u043e\u0440 \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0431\u0430\u0439\u0445\u0433\u04af\u0439 \u0431\u0430\u0439\u043d\u0430 \ud83d\ude05 \u0413\u044d\u0445\u0434\u044d\u044d \u043c\u0430\u043d\u0430\u0439 \u0431\u0430\u0433\u0438\u0439\u043d \u0445\u04af\u043d \u044d\u043d\u044d \u0442\u0430\u043b\u0430\u0430\u0440 \u0438\u043b\u04af\u04af \u043e\u0439\u043b\u0433\u043e\u043b\u0442 \u0442\u0430\u043d\u0434 \u04e9\u0433\u0447 \u0447\u0430\u0434\u043d\u0430\u0430. \u0425\u04af\u0441\u0432\u044d\u043b 86100157 \u044d\u0441\u0432\u044d\u043b 72706505 \u0440\u0443\u0443 \u0437\u0430\u043b\u0433\u0430\u0430\u0434 \u0430\u0441\u0443\u0443\u0433\u0430\u0430\u0434 \u04af\u0437\u044d\u044d\u0440\u044d\u0439\"\n\n5. \u0423\u0442\u0430\u0441/\u0438\u043c\u044d\u0439\u043b \u0430\u0441\u0443\u0443\u0445:\n\u0420\u043e\u0431\u043e\u0442 \u0448\u0438\u0433: \"\u0422\u0430\u043d\u044b \u0443\u0442\u0430\u0441\u043d\u044b \u0434\u0443\u0433\u0430\u0430\u0440\u044b\u0433 \u04e9\u0433\u043d\u04e9 \u04af\u04af.\"\n\n\u0425\u04af\u043d \u0448\u0438\u0433:\n\"\u0430\u0430\u043d\u0445\u0430\u043d \u0411\u0438 \u0442\u0430\u043d\u0434 \u0434\u044d\u043b\u0433\u044d\u0440\u044d\u043d\u0433\u04af\u0439 \u043c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0438\u043b\u0433\u044d\u044d\u0436 \u04e9\u0433\u044c\u0435. \u0423\u0442\u0430\u0441\u043d\u044b \u0434\u0443\u0433\u0430\u0430\u0440\u0430\u0430 \u0431\u0438\u0447\u044d\u044d\u0434 \u04e9\u0433\u04e9\u04e9\u0440\u044d\u0439\"\n\n6. \u04e8\u0433\u04af\u04af\u043b\u0431\u044d\u0440\u0438\u0439\u043d \u0442\u04e9\u0433\u0441\u0433\u04e9\u043b:\n- \"\u0434\u0430\u0430\", \"\u0448\u04af\u04af \u0434\u044d\u044d\", \"\u044e\u043c\" (\u043d\u0430\u0439\u0440\u0441\u0430\u0433 \u04e9\u043d\u0433\u04e9)\n- Emoji \u0445\u044d\u043c\u0436\u044d\u044d\u0442\u044d\u0439 \u0430\u0448\u0438\u0433\u043b\u0430\u0445: \ud83d\ude0a, \ud83d\udc4d, \ud83d\udcf1, \ud83d\udcbb, \u2728\n- \"\u0422\u0430 \u044e\u0443 \u0433\u044d\u0436 \u0431\u043e\u0434\u043e\u0436 \u0431\u0430\u0439\u043d\u0430?\", \"\u0422\u0430\u043d\u044b \u0441\u0430\u043d\u0430\u043b?\"\n\n7. \u042f\u0440\u0438\u0430\u0433\u0430\u0430 \u04af\u0440\u0433\u044d\u043b\u0436\u043b\u04af\u04af\u043b\u044d\u0445:\n- \"\u04e8\u04e9\u0440 \u0430\u0441\u0443\u0443\u0445 \u0437\u04af\u0439\u043b \u0431\u0430\u0439\u043d\u0430 \u0443\u0443?\"\n- \"\u0411\u0438 \u04e9\u04e9\u0440 \u0442\u0430\u043d\u0434 \u044e\u0443\u0433\u0430\u0430\u0440 \u0442\u0443\u0441\u043b\u0430\u0445 \u0432\u044d?\"\n- \"\u0414\u044d\u043b\u0433\u044d\u0440\u044d\u043d\u0433\u04af\u0439 \u043c\u044d\u0434\u044d\u0445\u0438\u0439\u0433 \u0445\u04af\u0441\u0432\u044d\u043b \u0445\u044d\u043b\u044d\u044d\u0440\u044d\u0439!\"\n- \"\u041e\u0439\u043b\u0433\u043e\u043c\u0436\u0442\u043e\u0439\u00a0\u0431\u0430\u0439\u0436 \u0447\u0430\u0434\u0430\u0436 \u0431\u0430\u0439\u043d\u0430 \u0443\u0443?\"\n\n# \u042f\u0420\u0418\u0410 \u0425\u042d\u041b\u0426\u041b\u0418\u0419\u041d \u0416\u0418\u0428\u042d\u042d\u041d\u04ae\u04ae\u0414:\n\n\u0421\u044d\u0434\u044d\u0432: \u04ae\u043d\u0438\u0439\u043d \u0442\u0430\u043b\u0430\u0430\u0440 \u0430\u0441\u0443\u0443\u043b\u0442\n\n\u274c \u0420\u043e\u0431\u043e\u0442 \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"AI \u0447\u0430\u0442\u0431\u043e\u0442\u044b\u043d \u04af\u043d\u044d 500,000\u20ae \u0431\u0430\u0439\u043d\u0430. \u041d\u044d\u043c\u044d\u043b\u0442 \u04af\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d 100,000\u20ae.\"\n\n\u2705 \u0425\u04af\u043d \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"AI \u0447\u0430\u0442\u0431\u043e\u0442\u044b\u043d \u04af\u043d\u044d 500,000\u20ae \u043e\u0440\u0447\u0438\u043c \u0431\u0430\u0439\u0434\u0430\u0433. \u0413\u044d\u0445\u0434\u044d\u044d \u0442\u0430\u043d\u044b \u0445\u044d\u0440\u044d\u0433\u0446\u044d\u044d\u043d\u044d\u044d\u0441 \u0445\u0430\u043c\u0430\u0430\u0440\u043d\u0430 \u0448\u04af\u04af. \u042f\u043c\u0430\u0440 \u0444\u0443\u043d\u043a\u0446 \u0445\u044d\u0440\u044d\u0433\u0442\u044d\u0439 \u0431\u0430\u0439\u043d\u0430 \u0432\u044d? \u0422\u044d\u0433\u0432\u044d\u043b \u0431\u0438 \u0442\u0430\u043d\u0434 \u0442\u043e\u0445\u0438\u0440\u043e\u0445 \u04af\u043d\u0438\u0439\u0433 \u0441\u0430\u043d\u0430\u043b \u0431\u043e\u043b\u0433\u043e\u0451\"\n\n\u0421\u044d\u0434\u044d\u0432: \u04ae\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d\u043d\u0438\u0439 \u0442\u0430\u043b\u0430\u0430\u0440\n\n\u274c \u0420\u043e\u0431\u043e\u0442 \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"\u041c\u0430\u043d\u0430\u0439 \u04af\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d\u043d\u04af\u04af\u0434: 1. \u0412\u0435\u0431\u0441\u0430\u0439\u0442 2. SEO 3. \u041c\u0430\u0440\u043a\u0435\u0442\u0438\u043d\u0433\"\n\n\u2705 \u0425\u04af\u043d \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"\u0411\u0438\u0434 \u044f\u043c\u0430\u0440 \u04af\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d \u04af\u0437\u04af\u04af\u043b\u0434\u044d\u0433 \u0432\u044d \u0433\u044d\u0445\u044d\u044d\u0440 \u04af\u043d\u0434\u0441\u044d\u043d\u0434\u044d\u044d:\n\u2022 \u0412\u0435\u0431\u0441\u0430\u0439\u0442 \u0431\u04af\u0442\u044d\u044d\u0445 \ud83d\udcbb\n\u2022 SEO \u0445\u0438\u0439\u0445\n\u2022 \u0421\u043e\u0448\u0438\u0430\u043b \u043c\u0430\u0440\u043a\u0435\u0442\u0438\u043d\u0433 \u0445\u0438\u0439\u043d\u044d\n\u2022 \u042d\u0439 \u0410\u0439\u0427\u0430\u0442\u0431\u043e\u0442 \u0445\u0438\u0439\u043d\u044d\n\u2022 \u0417\u0443\u0440\u0430\u0433 \u0430\u0432\u0430\u043b\u0442 \u0431\u0430\u0441 \u0445\u0438\u0439\u043d\u044d\n\n\u0433\u044d\u0445 \u043c\u044d\u0442 \u043e\u043b\u043e\u043d \u0442\u04e9\u0440\u043b\u0438\u0439\u043d \u04af\u0439\u043b\u0447\u0438\u043b\u0433\u044d\u044d \u04af\u0437\u04af\u04af\u043b\u0434\u044d\u0433\u044d\u044d? \u0422\u044d\u0433\u044d\u0445\u044d\u044d\u0440 \u0442\u0430 \u0430\u043b\u0438\u0439\u0433 \u043d\u044c \u0441\u043e\u043d\u0438\u0440\u0445\u043e\u043e\u0434 \u0431\u0430\u0439\u0433\u0430\u0430 \u0431\u0438\u043b\u044d\u044d?\"\n\n\u0421\u044d\u0434\u044d\u0432: \u041c\u044d\u0434\u044d\u0445\u0433\u04af\u0439 \u0431\u0430\u0439\u0445 \u04af\u0435\u0434\n\n\u274c \u0420\u043e\u0431\u043e\u0442 \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"\u041c\u044d\u0434\u044d\u044d\u043b\u044d\u043b \u0430\u043b\u0433\u0430. \u0425\u043e\u043b\u0431\u043e\u043e \u0431\u0430\u0440\u0438\u043d\u0430 \u0443\u0443.\"\n\n\u2705 \u0425\u04af\u043d \u0445\u044d\u0432 \u043c\u0430\u044f\u0433:\n\"\u0430\u0430\u043d\u0445\u0430\u043d, \u044d\u043d\u044d \u0442\u0430\u043b\u0430\u0430\u0440 \u0431\u0438 \u044f\u0433 \u0441\u0430\u0439\u043d \u0445\u044d\u043b\u0436 \u043c\u044d\u0434\u044d\u0445\u0433\u04af\u0439 \u043b \u0431\u0430\u0439\u043d\u0430 \ud83d\ude05 \u0413\u044d\u0445\u0434\u044d\u044d \u043c\u0430\u043d\u0430\u0439 \u043c\u044d\u0440\u0433\u044d\u0436\u0438\u043b\u0442\u043d\u04af\u04af\u0434 \u0430\u0441\u0443\u0443\u0434\u0430\u043b\u0433\u04af\u0439 \u0445\u0430\u0440\u0438\u0443\u043b\u0430\u0430\u0434 \u04e9\u0433\u043d\u04e9\u04e9. \u0422\u0430 86100157 \u0440\u0443\u0443 \u0437\u0430\u043b\u0433\u0430\u0430\u0434 \u0430\u0441\u0443\u0443\u0433\u0430\u0430\u0434 \u04af\u0437\u044d\u0445 \u04af\u04af. \u042d\u0441\u0432\u044d\u043b \u0443\u0442\u0430\u0441\u043d\u044b \u0434\u0443\u0433\u0430\u0430\u0440\u0430\u0430 \u04af\u043b\u0434\u044d\u044d\u0432\u044d\u043b \u0431\u0438 \u0442\u0430\u043d \u0440\u0443\u0443 \u044d\u0440\u0433\u044d\u044d\u0434 \u0445\u043e\u043b\u0431\u0443\u0443\u043b\u0430\u044f?\"\n\n# \u042f\u0420\u0418\u0410\u041d\u042b \u0423\u0420\u0421\u0413\u0410\u041b:\n\n1\ufe0f\u20e3 \u041c\u044d\u043d\u0434\u0447\u0438\u043b\u0433\u044d\u044d (\u0434\u0443\u043b\u0430\u0430\u043d, \u043d\u0430\u0439\u0440\u0441\u0430\u0433)\n2\ufe0f\u20e3 \u0421\u043e\u043d\u0441\u043e\u0445 (\u044e\u0443 \u0445\u044d\u0440\u044d\u0433\u0442\u044d\u0439 \u0431\u0430\u0439\u0433\u0430\u0430\u0433 \u043e\u0439\u043b\u0433\u043e\u0445)\n3\ufe0f\u20e3 Pinecone \u0445\u0430\u0439\u0445 (\u0437\u0430\u0430\u0432\u0430\u043b!)\n4\ufe0f\u20e3 \u0425\u0430\u0440\u0438\u0443\u043b\u0430\u0445 (\u044d\u043d\u0433\u0438\u0439\u043d, \u043e\u0439\u043b\u0433\u043e\u043c\u0436\u0442\u043e\u0439)\n5\ufe0f\u20e3 \u041b\u0430\u0432\u043b\u0430\u0445 \u0430\u0441\u0443\u0443\u043b\u0442 \u0430\u0441\u0443\u0443\u0445 (\u044f\u0440\u0438\u0430\u0433 \u04af\u0440\u0433\u044d\u043b\u0436\u043b\u04af\u04af\u043b\u044d\u0445, \u0441\u044d\u0434\u0432\u0438\u0439\u0433 \u0431\u0430\u0440\u0438\u0445)\n6\ufe0f\u20e3 \u0422\u04e9\u0433\u0441\u0433\u04e9\u043b (\u0431\u0430\u044f\u0440\u043b\u0430\u043b\u0430\u0430 + \u0434\u0430\u0440\u0430\u0430\u0433\u0438\u0439\u043d \u0430\u043b\u0445\u0430\u043c)\n\n# \u0425\u042d\u0412 \u041c\u0410\u042f\u0413\u0418\u0419\u041d \u0422\u04ae\u041b\u0425\u04ae\u04ae\u0420 \u04ae\u0413\u0421:\n\u2705 \u0425\u044d\u0440\u044d\u0433\u043b\u044d\u0445: \"\u0430\u0430\u043d\u0445\u0430\u043d\", \"\u041e\u0439\u043b\u0433\u043e\u043b\u043e\u043e\", \"\u0417\u0430 \u044f\u0430\u0445\u0430\u0432\", \"\u0422\u0438\u0439\u043c \u044d\u044d\", \"\u041c\u044d\u0434\u044d\u044d\u0436\", \"\u0417\u04af\u0433\u044d\u044d\u0440\u044d\u044d\"\n\u2705 \u0410\u0441\u0443\u0443\u043b\u0442: \"\u0430\u0430\u0440\u0430\u0439?\", \"\u044e\u0443?\", \"\u042f\u0430\u0436 \u0431\u043e\u0434\u043e\u0436 \u0431\u0430\u0439\u043d\u0430?\", \"\u0422\u043e\u0445\u0438\u0440\u0447 \u0431\u0430\u0439\u043d\u0430 \u0443\u0443?\"\n\u2705 \u041d\u0430\u0439\u0440\u0441\u0430\u0433: \"\ud83d\ude0a\", \"\u0411\u0430\u044f\u0440\u043b\u0430\u043b\u0430\u0430\", \"\u0418\u0445 \u0431\u0430\u044f\u0440\u043b\u0430\u043b\u0430\u0430\", \"\u0421\u0430\u0439\u0445\u0430\u043d \u0441\u043e\u043d\u0433\u043e\u043b\u0442 \u0431\u0430\u0439\u043d\u0430\"\n\u274c \u0425\u044d\u0440\u044d\u0433\u043b\u044d\u0445\u0433\u04af\u0439: \u0425\u04e9\u0448\u04af\u04af\u043d \u04af\u0433, \u0445\u044d\u0442 \u0430\u043b\u0431\u0430\u043d \u0451\u0441\u043d\u044b \u0445\u044d\u043b\u044d\u044d\u0440, \u0443\u0440\u0442 \u04e9\u0433\u04af\u04af\u043b\u0431\u044d\u0440, \u0442\u0435\u0445\u043d\u0438\u043a\u0438\u0439\u043d \u043d\u044d\u0440 \u0442\u043e\u043c\u044a\u0451\u043e\n\n#Mandatory Think Tool Usage\nYou MUST use the 'Think Tool' to conduct internal analysis for the following user inputs. This process ensures accuracy and proper service alignment.\n\n##1. Complex Queries (Multi-Step & Ambiguity):\n\nIf the user's request involves more than one service area (e.g., \"I need a new website and better social media likes\"), use the Think Tool to segment the request and prioritize the immediate next step.\n\nIf the user's intent is vague (e.g., \"We need more leads\"), use the Think Tool to determine the missing information (e.g., Target audience? Current website performance? Budget?) and structure your reply to ask clarifying questions.\n\n##2. Decision/Comparison Requests:\n\nIf the user asks for a comparison (e.g., \"Should I do SEO or Video Ads?\"), use the Think Tool to weigh the pros and cons of each service based on common client goals (e.g., speed of results, long-term stability, cost).\n\n##3. Problem Diagnosis:\n\nIf the user describes a problem (e.g., \"My website isn't converting\"), use the Think Tool to diagnose the potential issue across our disciplines (e.g., Is it a WEB/UX issue? An SEO/traffic issue? A CRM/lead-nurturing issue?).\n\n##Instruction for Final Reply\nYour final, external response must be a single, structured answer. It should:\n\nAcknowledge the user's core problem.\n\nBriefly mention which service area(s) are relevant.\n\nDigital Marketing Support Assistant\nYou are a proactive Support Assistant for a digital marketing agency. Your primary goal is to assist with client inquiries and campaign management. You are strictly forbidden from manually updating client databases or campaign settings. You must use the send_email_notification tool to hand off modifications and sensitive situations to the marketing fulfillment team.\n\nModification & Contact Protocol\nIf a client requests a change or provides contact details, you must trigger the email tool.\n\nTarget Scenarios:\n\nCampaign Changes: Requests to adjust budget, target audience, ad copy, or pause/start campaigns.\n\nContact Information: If a user provides a phone number or email address, ensure it is captured in the user_summary.\n\nCancellations/Refunds: Any request to stop services or dispute a billing charge.\n\nSensitive Data: If a user sends billing screenshots or transaction IDs.\n\nSentiment & Dissatisfaction Protocol\nTriggers: Aggressive language or frustration (e.g., \"My ads aren't working,\" \"I'm wasting money\").\n\nAction: Call send_email_notification with request_type: \"sentiment_escalation\" and priority: \"urgent\".\n\nTone: Transition to a highly empathetic, de-escalating tone. Do not argue about campaign performance.\n\nTool Usage Guidelines\nMapping Rules:\n\nsender_id: {{ $json.sessionId }}\n\nrequest_type: [campaign_update, cancellation, billing_issue, sentiment_escalation, lead_submission]\n\nuser_summary: A concise summary of the request, strictly including any phone numbers or email addresses provided.\n\nExample Execution\nUser: \"I want to increase my ad budget to $500. Call me at 555-0122 or email me at marketing@agency.com.\"\n\nTool Call: send_email_notification(sender_id=\"25455486560737502\", request_type=\"campaign_update\", priority=\"medium\", user_summary=\"Client wants to increase budget to $500. Contact: 555-0122 / marketing@agency.com\")\n\n#If user send us a Like thubnail or emoji etc so don't explain about it.\n#Don't mention about Pinecone, it is our knowledgebasement that we need to hide or protect it or it's privacy\n\n##If you need to create google meeting link so use the \"Create Google calendar\"\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        5984,
+        2560
+      ],
+      "id": "18374394-83c1-40de-8cf0-14f791590fff",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "description": "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.\n\nConstraint: Response Uniqueness.\n\nStrictly evaluate the immediate preceding two system outputs.\n\nFilter and consolidate: If the current output's primary sentiment (e.g., apology, closure statement, status update) or action request (e.g., asking for confirmation) is identical or functionally equivalent to a recent output, the system MUST modify or suppress the redundant message.\n\nGoal: Ensure that each generated message advances the conversation or provides new, distinct information. Avoid sending sequences of messages that convey the same basic meaning, such as multiple consecutive apologies or restatements of the same availability/status.\""
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        5904,
+        2816
+      ],
+      "id": "fccea3a9-4b72-424b-b44d-4306c68ef7c2",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tE83PllTNNBRnJnZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/tE83PllTNNBRnJnZ",
+          "cachedResultName": "Webhiine email notification on messenger"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6256,
+        2816
+      ],
+      "id": "3eeb1b96-35ff-4da0-87b0-e72d040a3387",
+      "name": "Call 'send_email_notification'1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        5488,
+        2800
+      ],
+      "id": "2b5d7184-0951-4b87-bb34-922f508ba645",
+      "name": "Google Gemini Chat Model1"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to Create calendar event on Google Calendar",
+        "workflowId": {
+          "__rl": true,
+          "value": "K9MMoAMVMmCw0Sah",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/K9MMoAMVMmCw0Sah",
+          "cachedResultName": "PS calendar Google"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6432,
+        2816
+      ],
+      "id": "27f40097-4350-48d8-8ea4-301d166ed83d",
+      "name": "Create Google calendar1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        5744,
+        2560
+      ],
+      "id": "0ba578e9-3ecd-425b-bf52-a48e3f371cfe",
+      "name": "When chat message received",
+      "webhookId": "66baf744-b8ef-4a61-9ba8-ef45d88b3843"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        5712,
+        2800
+      ],
+      "id": "fe6cd2a2-b6d2-4a63-88a9-56becd29e5fe",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "content": "I removed the Header section pls review after few days if its working?"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6144,
+        96
+      ],
+      "id": "b9ff01ee-ec3b-4ddc-a364-51a38ba5e4f4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 1680,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        544
+      ],
+      "id": "40947599-2fae-4c43-9475-15e4ca558534",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 1680,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        880
+      ],
+      "id": "619e2201-365c-4ca4-aae9-80f1ab8e577d",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 496,
+        "width": 976,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        80
+      ],
+      "id": "0b270363-4085-47de-b319-0767dded207d",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "Knowledge or RAG",
+        "height": 176,
+        "width": 224,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5040,
+        1120
+      ],
+      "id": "7a1502ae-2301-4fcb-9e8e-c900319d448e",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "AI model",
+        "height": 176,
+        "width": 224,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4416,
+        1120
+      ],
+      "id": "23567b2e-8664-4059-afa3-df28f6d17bb9",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "Prompt",
+        "height": 208,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4848,
+        736
+      ],
+      "id": "9d72e0bc-37d6-4614-ae19-4a2d9a433f03",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://ezcffhprxwitdnodukzv.supabase.co/rest/v1/chatbots",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "messenger_page_id",
+              "value": "=eq.{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}"
+            },
+            {
+              "name": "select",
+              "value": "system_prompt,ai_model,model_tier,rag_store_id,messenger_access_token,handoff_email,notify_emails,enable_human_handoff,messenger_page_id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6Y2ZmaHByeHdpdGRub2R1a3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDkzOTIsImV4cCI6MjA3MTA4NTM5Mn0.Q_XW2cweszc476CxJ1-c8xV_GHeco0Xnhaf1szMFbj0"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6Y2ZmaHByeHdpdGRub2R1a3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDkzOTIsImV4cCI6MjA3MTA4NTM5Mn0.Q_XW2cweszc476CxJ1-c8xV_GHeco0Xnhaf1szMFbj0"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.pgrst.object+json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3348,
+        576
+      ],
+      "id": "fetch-tenant-config-001",
+      "name": "Fetch tenant config"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "config-guard-cond",
+              "leftValue": "={{ $json.messenger_access_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3608,
+        576
+      ],
+      "id": "config-guard-001",
+      "name": "Config found?"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "node": "Echo_true",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Retreive last pending2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table1": {
+      "main": [
+        [
+          {
+            "node": "Messenger user ID find1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messenger user ID find1": {
+      "main": [
+        [
+          {
+            "node": "Messenger user name find1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messenger user name find1": {
+      "main": [
+        [
+          {
+            "node": "Notify Team via Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Echo_true": {
+      "main": [
+        [
+          {
+            "node": "Store Human Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "APP ID check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pending_check": {
+      "main": [
+        [
+          {
+            "node": "typing ...2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store user reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Human Reply": {
+      "main": [
+        [
+          {
+            "node": "Payment_word_checking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retreive last pending": {
+      "main": [
+        [
+          {
+            "node": "pending_check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text_true": {
+      "main": [
+        [
+          {
+            "node": "set1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image_true",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image_true": {
+      "main": [
+        [
+          {
+            "node": "img_url",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "img_url": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set1": {
+      "main": [
+        [
+          {
+            "node": "Fetch tenant config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Status is pending": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "typing ...2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APP ID check": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text_true",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sent back to messenger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Messenger user ID find2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team via Email2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messenger user ID find2": {
+      "main": [
+        [
+          {
+            "node": "Messenger user name find2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messenger user name find2": {
+      "main": [
+        [
+          {
+            "node": "Notify Team via Email2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Sent back to messenger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SenderID+Chatinput": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment_word_checking": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Pendings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retrieve Pendings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Pendings": {
+      "main": [
+        [
+          {
+            "node": "If Status is pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Sent image only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sent text only": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "img_detect": {
+      "main": [
+        [
+          {
+            "node": "Sent text only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Splite img": {
+      "main": [
+        [
+          {
+            "node": "img_detect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Splite img",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'send_email_notification'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pending_check2": {
+      "main": [
+        [
+          {
+            "node": "SenderID+Chatinput",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store user reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retreive last pending2": {
+      "main": [
+        [
+          {
+            "node": "pending_check2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'send_email_notification'1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google calendar1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch tenant config": {
+      "main": [
+        [
+          {
+            "node": "Config found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config found?": {
+      "main": [
+        [
+          {
+            "node": "Retreive last pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Ulaanbaatar",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "dcv04DYKoNX6YYTG"
+  }
+}
