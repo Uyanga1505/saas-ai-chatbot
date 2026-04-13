@@ -30,6 +30,9 @@ export default function SignupPage() {
 
       if (result.error) {
         setError(result.error)
+      } else if (result.isAutoConfirmed) {
+        // User was auto-confirmed, go straight to dashboard
+        router.push("/dashboard")
       } else {
         router.push("/auth/verify-email")
       }

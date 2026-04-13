@@ -29,7 +29,18 @@ export async function signUp(email: string, password: string, fullName: string) 
       return { error: error.message }
     }
 
-    return { data, error: null }
+    // Check if user was auto-confirmed (no email verification needed)
+    const isAutoConfirmed = !!data?.user?.email_confirmed_at
+
+    // Check if this is a fake signup (email already exists) - Supabase returns
+    // a user with empty identities array to prevent email enumeration
+    const isFakeSignup = data?.user?.identities?.length === 0
+
+    if (isFakeSignup) {
+      return { error: "An account with this email already exists. Please sign in instead." }
+    }
+
+    return { data, error: null, isAutoConfirmed }
   } catch (error) {
     console.error("Error signing up:", error)
     return { error: "An unexpected error occurred during signup" }
