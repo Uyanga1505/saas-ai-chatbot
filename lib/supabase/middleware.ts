@@ -28,6 +28,16 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
+  // Handle auth code exchange — Supabase email links land at /?code=...
+  const code = request.nextUrl.searchParams.get("code")
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code)
+    const url = request.nextUrl.clone()
+    url.pathname = "/dashboard"
+    url.searchParams.delete("code")
+    return NextResponse.redirect(url)
+  }
+
   try {
     const {
       data: { user },
@@ -37,6 +47,13 @@ export async function updateSession(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
       const url = request.nextUrl.clone()
       url.pathname = "/auth/login"
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect authenticated users away from auth pages to dashboard
+    if (user && (request.nextUrl.pathname.startsWith("/auth/login") || request.nextUrl.pathname.startsWith("/auth/signup"))) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/dashboard"
       return NextResponse.redirect(url)
     }
   } catch (error) {

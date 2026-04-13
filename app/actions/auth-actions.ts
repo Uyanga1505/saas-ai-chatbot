@@ -12,7 +12,8 @@ export async function signUp(email: string, password: string, fullName: string) 
     const origin =
       headersList.get("origin") ||
       headersList.get("referer")?.split("/").slice(0, 3).join("/") ||
-      "http://localhost:3000"
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://saas-ai-chatbot-zeta.vercel.app"
 
     const { data, error } = await supabase.auth.signUp({
       email,
