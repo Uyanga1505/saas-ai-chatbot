@@ -19,5 +19,5 @@ export const SUPABASE_CREDENTIALS = {
 
   // Replace this with your Supabase anon/public key
   // Example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  anonKey: "eyJhbGciOiJIUzI1NiIsInJlZiI6ImV6Y2ZmaHByeHdpdGRub2R1a3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDkzOTIsImV4cCI6MjA3MTA4NTM5Mn0.Q_XW2cweszc476CxJ1-c8xV_GHeco0Xnhaf1szMFbj0",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6Y2ZmaHByeHdpdGRub2R1a3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDkzOTIsImV4cCI6MjA3MTA4NTM5Mn0.Q_XW2cweszc476CxJ1-c8xV_GHeco0Xnhaf1szMFbj0",
 }
