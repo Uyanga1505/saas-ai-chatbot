@@ -33,7 +33,7 @@ export interface Message {
   created_at: string
 }
 
-export async function fetchLeads() {
+export async function fetchLeads(filterPageIds?: string[]) {
   try {
     const supabase = await createClient()
 
@@ -41,26 +41,26 @@ export async function fetchLeads() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { data: [], error: "Not authenticated" }
 
-    // Get user's chatbots and their page_ids
-    const { data: chatbots, error: chatbotsError } = await supabase
-      .from("chatbots")
-      .select("messenger_page_id")
-      .eq("user_id", user.id)
+    // Use provided page_ids or fetch all from user's chatbots
+    let pageIds = filterPageIds
+    if (!pageIds || pageIds.length === 0) {
+      const { data: chatbots, error: chatbotsError } = await supabase
+        .from("chatbots")
+        .select("messenger_page_id")
+        .eq("user_id", user.id)
 
-    if (chatbotsError) {
-      console.error("Error fetching user chatbots:", chatbotsError)
-      return { data: [], error: chatbotsError.message }
+      if (chatbotsError) {
+        console.error("Error fetching user chatbots:", chatbotsError)
+        return { data: [], error: chatbotsError.message }
+      }
+
+      if (!chatbots || chatbots.length === 0) {
+        return { data: [], error: null }
+      }
+
+      pageIds = chatbots.map(c => c.messenger_page_id).filter(Boolean)
     }
 
-    // If user has no chatbots, return empty data
-    if (!chatbots || chatbots.length === 0) {
-      return { data: [], error: null }
-    }
-
-    const pageIds = chatbots.map(c => c.messenger_page_id)
-
-    // Query conversation_insights filtered by user's chatbot page_ids
-    // (qualified_lead, email_address, phone, summary, sentiment, lead_quality_score etc.)
     const { data, error } = await supabase
       .from("conversation_insights")
       .select("*")

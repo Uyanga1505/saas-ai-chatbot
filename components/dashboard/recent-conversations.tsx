@@ -7,19 +7,23 @@ import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { useState, useEffect } from "react"
 import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
+import { useChatbot } from "@/lib/chatbot-context"
 import { Users, ExternalLink } from "lucide-react"
 import Link from "next/link"
 
 export function RecentConversations() {
+  const { selectedChatbotId, getPageIds } = useChatbot()
   const [conversations, setConversations] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadConversations()
-  }, [])
+  }, [selectedChatbotId])
 
   const loadConversations = async () => {
-    const { data } = await fetchLeads()
+    setIsLoading(true)
+    const pageIds = getPageIds()
+    const { data } = await fetchLeads(pageIds.length > 0 ? pageIds : undefined)
     setConversations(data.slice(0, 5))
     setIsLoading(false)
   }

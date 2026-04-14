@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bot, MessageSquare, Users, TrendingUp } from "lucide-react"
 import { useState, useEffect } from "react"
 import { fetchLeads } from "@/app/actions/leads-actions"
+import { useChatbot } from "@/lib/chatbot-context"
 
 export function StatsCards() {
+  const { selectedChatbotId, getPageIds } = useChatbot()
   const [stats, setStats] = useState({
     totalLeads: 0,
     qualifiedLeads: 0,
@@ -15,15 +17,18 @@ export function StatsCards() {
 
   useEffect(() => {
     loadStats()
-  }, [])
+  }, [selectedChatbotId])
 
   const loadStats = async () => {
-    const { data } = await fetchLeads()
+    const pageIds = getPageIds()
+    const { data } = await fetchLeads(pageIds.length > 0 ? pageIds : undefined)
 
     const qualifiedCount = data.filter((l) => l.qualified_lead).length
+    const scoresData = data.filter((l) => l.lead_quality_score)
     const avgScore =
-      data.filter((l) => l.lead_quality_score).reduce((sum, l) => sum + (l.lead_quality_score || 0), 0) /
-        data.filter((l) => l.lead_quality_score).length || 0
+      scoresData.length > 0
+        ? scoresData.reduce((sum, l) => sum + (l.lead_quality_score || 0), 0) / scoresData.length
+        : 0
     const withContact = data.filter((l) => l.email_address || l.phone).length
 
     setStats({

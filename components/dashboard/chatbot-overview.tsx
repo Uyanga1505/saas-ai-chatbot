@@ -5,35 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Bot, Settings, Play, Pause } from "lucide-react"
 import { useState, useEffect } from "react"
-import { getChatbots, toggleChatbotStatus } from "@/app/actions/chatbot-actions"
+import { toggleChatbotStatus } from "@/app/actions/chatbot-actions"
+import { useChatbot } from "@/lib/chatbot-context"
 import Link from "next/link"
 
-interface Chatbot {
-  id: string
-  name: string
-  description: string | null
-  is_active: boolean
-  ai_model: string | null
-  messenger_page_id: string | null
-}
-
 export function ChatbotOverview() {
-  const [chatbots, setChatbots] = useState<Chatbot[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    loadChatbots()
-  }, [])
-
-  const loadChatbots = async () => {
-    const { data } = await getChatbots()
-    setChatbots(data || [])
-    setIsLoading(false)
-  }
+  const { chatbots, refreshChatbots, isLoading } = useChatbot()
 
   const handleToggle = async (id: string, currentStatus: boolean) => {
     await toggleChatbotStatus(id, currentStatus)
-    loadChatbots()
+    refreshChatbots()
   }
 
   const getStatusColor = (active: boolean) => {
