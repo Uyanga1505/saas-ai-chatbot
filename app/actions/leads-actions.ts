@@ -37,11 +37,34 @@ export async function fetchLeads() {
   try {
     const supabase = await createClient()
 
-    // Query conversation_insights — this is where n8n stores analyzed lead data
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: [], error: "Not authenticated" }
+
+    // Get user's chatbots and their page_ids
+    const { data: chatbots, error: chatbotsError } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    if (chatbotsError) {
+      console.error("Error fetching user chatbots:", chatbotsError)
+      return { data: [], error: chatbotsError.message }
+    }
+
+    // If user has no chatbots, return empty data
+    if (!chatbots || chatbots.length === 0) {
+      return { data: [], error: null }
+    }
+
+    const pageIds = chatbots.map(c => c.messenger_page_id)
+
+    // Query conversation_insights filtered by user's chatbot page_ids
     // (qualified_lead, email_address, phone, summary, sentiment, lead_quality_score etc.)
     const { data, error } = await supabase
       .from("conversation_insights")
       .select("*")
+      .in("page_id", pageIds)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -60,7 +83,35 @@ export async function fetchLeadById(id: number) {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase.from("conversation_insights").select("*").eq("id", id).single()
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: null, error: "Not authenticated" }
+
+    // Get user's chatbots and their page_ids
+    const { data: chatbots, error: chatbotsError } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    if (chatbotsError) {
+      console.error("Error fetching user chatbots:", chatbotsError)
+      return { data: null, error: chatbotsError.message }
+    }
+
+    // If user has no chatbots, return null
+    if (!chatbots || chatbots.length === 0) {
+      return { data: null, error: "No chatbots found" }
+    }
+
+    const pageIds = chatbots.map(c => c.messenger_page_id)
+
+    // Query conversation_insights filtered by user's chatbot page_ids
+    const { data, error } = await supabase
+      .from("conversation_insights")
+      .select("*")
+      .eq("id", id)
+      .in("page_id", pageIds)
+      .single()
 
     if (error) {
       console.error("Error fetching lead:", error)
@@ -127,7 +178,49 @@ export async function getLeadsSummary() {
   try {
     const supabase = await createClient()
 
-    const { data: leads, error } = await supabase.from("conversation_insights").select("*")
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return {
+        totalLeads: 0,
+        qualifiedLeads: 0,
+        withContactInfo: 0,
+        avgQualityScore: 0,
+      }
+    }
+
+    // Get user's chatbots and their page_ids
+    const { data: chatbots, error: chatbotsError } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    if (chatbotsError) {
+      console.error("Error fetching user chatbots:", chatbotsError)
+      return {
+        totalLeads: 0,
+        qualifiedLeads: 0,
+        withContactInfo: 0,
+        avgQualityScore: 0,
+      }
+    }
+
+    // If user has no chatbots, return zero summary
+    if (!chatbots || chatbots.length === 0) {
+      return {
+        totalLeads: 0,
+        qualifiedLeads: 0,
+        withContactInfo: 0,
+        avgQualityScore: 0,
+      }
+    }
+
+    const pageIds = chatbots.map(c => c.messenger_page_id)
+
+    const { data: leads, error } = await supabase
+      .from("conversation_insights")
+      .select("*")
+      .in("page_id", pageIds)
 
     if (error) {
       console.error("Error fetching leads summary:", error)

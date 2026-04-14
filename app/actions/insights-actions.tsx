@@ -50,10 +50,33 @@ export async function getLeadsWithInsights() {
   try {
     const supabase = await createClient()
 
-    // Get all leads from n8n_chat_histories
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: [], error: "Not authenticated" }
+
+    // Get user's chatbots and their page_ids
+    const { data: chatbots, error: chatbotsError } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    if (chatbotsError) {
+      console.error("[v0] Error fetching user chatbots:", chatbotsError)
+      return { data: [], error: chatbotsError.message }
+    }
+
+    // If user has no chatbots, return empty data
+    if (!chatbots || chatbots.length === 0) {
+      return { data: [], error: null }
+    }
+
+    const pageIds = chatbots.map(c => c.messenger_page_id)
+
+    // Get leads from n8n_chat_histories filtered by user's chatbot page_ids
     const { data: leads, error: leadsError } = await supabase
       .from("n8n_chat_histories")
       .select("*")
+      .in("page_id", pageIds)
       .order("created_at", { ascending: false })
 
     if (leadsError) {
@@ -61,8 +84,11 @@ export async function getLeadsWithInsights() {
       return { data: [], error: leadsError.message }
     }
 
-    // Get all insights
-    const { data: insights, error: insightsError } = await supabase.from("conversation_insights").select("*")
+    // Get insights filtered by user's chatbot page_ids
+    const { data: insights, error: insightsError } = await supabase
+      .from("conversation_insights")
+      .select("*")
+      .in("page_id", pageIds)
 
     if (insightsError) {
       console.error("[v0] Error fetching insights:", insightsError)
@@ -92,7 +118,23 @@ export async function getInsightsSummary() {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase.from("conversation_insights").select("*").limit(100)
+    // Get current user and their chatbot page_ids for multi-tenant filtering
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { summary: null, error: "Not authenticated" }
+
+    const { data: chatbots } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    const pageIds = chatbots?.map(c => c.messenger_page_id) || []
+
+    let query = supabase.from("conversation_insights").select("*").limit(100)
+    if (pageIds.length > 0) {
+      query = query.in("page_id", pageIds)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error("[v0] Error fetching insights summary:", error)
