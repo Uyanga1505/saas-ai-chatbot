@@ -6,6 +6,7 @@ import { Bell, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { getCurrentUser } from "@/app/actions/auth-actions"
 import Link from "next/link"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface User {
   email: string
@@ -50,6 +51,8 @@ export function DashboardHeader() {
             New Chatbot
           </Link>
         </Button>
+
+        <ThemeToggle />
 
         <Button variant="ghost" size="sm">
           <Bell className="h-4 w-4" />
