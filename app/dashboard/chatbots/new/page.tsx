@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { FacebookPageSelector } from "@/components/facebook-page-selector"
 
 export default function NewChatbotPage() {
   const router = useRouter()
@@ -49,6 +50,9 @@ export default function NewChatbotPage() {
           ? form.notify_emails.split(",").map((e) => e.trim()).filter(Boolean)
           : [],
       })
+      if (!result?.id) {
+        throw new Error("Failed to create chatbot — no ID returned")
+      }
       router.push(`/dashboard/chatbots/${result.id}/settings`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -107,34 +111,26 @@ export default function NewChatbotPage() {
         <Card>
           <CardHeader>
             <CardTitle>Facebook page connection</CardTitle>
-            <CardDescription>Connect your Facebook business page to receive and send messages via n8n.</CardDescription>
+            <CardDescription>
+              Log in with Facebook to see your Pages, then pick the one this chatbot should respond on.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="messenger_page_id">Facebook Page ID *</Label>
-              <Input
-                id="messenger_page_id"
-                placeholder="e.g. 113756287895355"
-                value={form.messenger_page_id}
-                onChange={(e) => set("messenger_page_id", e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">Found in your Facebook Page → About → Page ID</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="messenger_access_token">Page Access Token *</Label>
-              <Textarea
-                id="messenger_access_token"
-                placeholder="Paste your long-lived page access token"
-                value={form.messenger_access_token}
-                onChange={(e) => set("messenger_access_token", e.target.value)}
-                rows={3}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Meta Developer Console → Your App → Messenger → Access Tokens
+          <CardContent>
+            <FacebookPageSelector
+              selectedPageId={form.messenger_page_id}
+              onPageSelected={({ page_id, access_token }) => {
+                setForm((f) => ({
+                  ...f,
+                  messenger_page_id: page_id,
+                  messenger_access_token: access_token,
+                }))
+              }}
+            />
+            {form.messenger_page_id && (
+              <p className="mt-3 text-xs text-green-600">
+                Page connected — ID: {form.messenger_page_id}
               </p>
-            </div>
+            )}
           </CardContent>
         </Card>
 

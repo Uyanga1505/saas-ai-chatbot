@@ -203,7 +203,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
         <div className="relative sm:col-span-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -242,6 +242,19 @@ export default function LeadsPage() {
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="with">With Insights</SelectItem>
             <SelectItem value="without">Without Insights</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterIntent} onValueChange={setFilterIntent}>
+          <SelectTrigger>
+            <SelectValue placeholder="Intent" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Intents</SelectItem>
+            <SelectItem value="purchase">Purchase</SelectItem>
+            <SelectItem value="inquiry">Inquiry</SelectItem>
+            <SelectItem value="support">Support</SelectItem>
+            <SelectItem value="complaint">Complaint</SelectItem>
+            <SelectItem value="unknown">Unknown</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterHasContact} onValueChange={setFilterHasContact}>

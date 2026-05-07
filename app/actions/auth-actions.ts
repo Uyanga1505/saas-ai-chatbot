@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 
-export async function signUp(email: string, password: string, fullName: string) {
+export async function signUp(email: string, password: string, fullName: string, companyName?: string) {
   try {
     const supabase = await createClient()
 
@@ -22,6 +22,7 @@ export async function signUp(email: string, password: string, fullName: string) 
         emailRedirectTo: `${origin}/auth/callback`,
         data: {
           full_name: fullName,
+          company_name: companyName || "",
         },
       },
     })

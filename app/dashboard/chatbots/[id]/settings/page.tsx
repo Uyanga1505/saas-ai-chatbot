@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Save, Copy, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { FacebookPageSelector } from "@/components/facebook-page-selector"
 
 interface ChatbotForm {
   id: string
@@ -283,28 +284,22 @@ export default function ChatbotSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Messenger integration</CardTitle>
-                <CardDescription>Your page ID and token — n8n uses these to send replies.</CardDescription>
+                <CardDescription>Connect or change the Facebook Page for this chatbot.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="pageId">Facebook Page ID</Label>
-                  <Input
-                    id="pageId"
-                    value={form.messenger_page_id}
-                    onChange={(e) => set("messenger_page_id", e.target.value)}
-                    placeholder="e.g. 113756287895355"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accessToken">Page Access Token</Label>
-                  <Textarea
-                    id="accessToken"
-                    value={form.messenger_access_token}
-                    onChange={(e) => set("messenger_access_token", e.target.value)}
-                    rows={4}
-                    placeholder="Paste your long-lived page access token"
-                  />
-                </div>
+                <FacebookPageSelector
+                  selectedPageId={form.messenger_page_id}
+                  onPageSelected={({ page_id, access_token }) => {
+                    set("messenger_page_id", page_id)
+                    set("messenger_access_token", access_token)
+                  }}
+                />
+                {form.messenger_page_id && (
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>Connected Page ID: <span className="font-mono font-medium">{form.messenger_page_id}</span></p>
+                  </div>
+                )}
+                <Separator />
                 <div className="space-y-2">
                   <Label>Webhook URL</Label>
                   <p className="text-xs text-muted-foreground">
@@ -316,16 +311,6 @@ export default function ChatbotSettingsPage() {
                       {copiedWebhook ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                     </Button>
                   </div>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Facebook Developer Console — What to enter</h4>
-                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                    <li>Go to <strong>developers.facebook.com</strong> → Your App → Messenger → Settings</li>
-                    <li>Under <strong>Webhooks</strong>, click <em>Add Callback URL</em></li>
-                    <li>Paste the <strong>Webhook URL</strong> above as the Callback URL</li>
-                    <li>Set <strong>Verify Token</strong> to your <code className="bg-blue-100 px-1 rounded">MESSENGER_VERIFY_TOKEN</code> env value</li>
-                    <li>Subscribe to the <strong>messages</strong> event</li>
-                  </ol>
                 </div>
               </CardContent>
             </Card>

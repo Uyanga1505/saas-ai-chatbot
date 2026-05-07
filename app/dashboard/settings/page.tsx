@@ -37,10 +37,15 @@ export default function SettingsPage() {
     try {
       const user = await getCurrentUser()
       if (user) {
-        setProfile(user as UserProfile)
+        setProfile({
+          id: user.id,
+          email: user.email || "",
+          full_name: user.user_metadata?.full_name || null,
+          company_name: user.user_metadata?.company_name || null,
+        })
         setFormData({
-          full_name: user.full_name || "",
-          company_name: user.company_name || "",
+          full_name: user.user_metadata?.full_name || "",
+          company_name: user.user_metadata?.company_name || "",
           email: user.email || "",
         })
       }

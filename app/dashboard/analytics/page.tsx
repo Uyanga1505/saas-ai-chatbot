@@ -50,8 +50,19 @@ export default function AnalyticsPage() {
     )
   }
 
-  const sentimentData = insightStats?.sentimentDistribution || []
-  const intentData = insightStats?.intentDistribution || []
+  // Transform object distributions { key: count } into arrays [{ sentiment/intent, count }]
+  const sentimentData = insightStats?.summary?.sentimentDistribution
+    ? Object.entries(insightStats.summary.sentimentDistribution).map(([key, value]) => ({
+        sentiment: key,
+        count: value as number,
+      }))
+    : []
+  const intentData = insightStats?.summary?.intentDistribution
+    ? Object.entries(insightStats.summary.intentDistribution).map(([key, value]) => ({
+        intent: key,
+        count: value as number,
+      }))
+    : []
 
   return (
     <div className="space-y-6">
@@ -186,7 +197,7 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <p className="text-sm font-medium">Total Insights</p>
-              <p className="text-2xl font-bold">{insightStats?.totalInsights || 0}</p>
+              <p className="text-2xl font-bold">{insightStats?.summary?.totalInsights || 0}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">Most Common Sentiment</p>

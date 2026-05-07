@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare, TestTube } from "lucide-react"
+import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { getChatbots, toggleChatbotStatus, deleteChatbot } from "@/app/actions/chatbot-actions"
@@ -144,13 +144,7 @@ export default function ChatbotsPage() {
                   </Button>
 
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/chatbots/${chatbot.id}/test`}>
-                      <TestTube className="h-4 w-4" />
-                    </Link>
-                  </Button>
-
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/chatbots/${chatbot.id}/conversations`}>
+                    <Link href="/dashboard/conversations">
                       <MessageSquare className="h-4 w-4" />
                     </Link>
                   </Button>
