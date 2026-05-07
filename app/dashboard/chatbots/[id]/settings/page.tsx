@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { getChatbot, updateChatbot, deleteChatbot } from "@/app/actions/chatbot-actions"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Save, Copy, CheckCircle } from "lucide-react"
+import { ArrowLeft, Save, Copy, CheckCircle, Upload } from "lucide-react"
 import Link from "next/link"
 import { FacebookPageSelector } from "@/components/facebook-page-selector"
 import { KnowledgeBaseUpload } from "@/components/knowledge-base-upload"
@@ -43,6 +43,23 @@ export default function ChatbotSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [copiedWebhook, setCopiedWebhook] = useState(false)
+  const promptFileRef = useRef<HTMLInputElement>(null)
+
+  const handlePromptFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== "text/plain" && !file.name.endsWith(".txt")) {
+      setError("Only .txt files are supported for prompt upload.")
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      if (text) set("system_prompt", text)
+    }
+    reader.readAsText(file)
+    if (promptFileRef.current) promptFileRef.current.value = ""
+  }
 
   const webhookUrl =
     typeof window !== "undefined"
@@ -216,13 +233,37 @@ export default function ChatbotSettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="system_prompt">System prompt</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="system_prompt">System prompt</Label>
+                    <div>
+                      <input
+                        ref={promptFileRef}
+                        type="file"
+                        accept=".txt"
+                        onChange={handlePromptFileUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => promptFileRef.current?.click()}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Load from file
+                      </Button>
+                    </div>
+                  </div>
                   <Textarea
                     id="system_prompt"
                     value={form.system_prompt}
                     onChange={(e) => set("system_prompt", e.target.value)}
                     rows={10}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Type your prompt directly or upload a .txt file.
+                  </p>
                 </div>
                 <Separator />
                 <div className="space-y-2">

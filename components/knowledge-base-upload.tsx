@@ -147,15 +147,12 @@ export function KnowledgeBaseUpload({ chatbotId }: KnowledgeBaseUploadProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`
-          relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors
-          ${dragOver
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
-          }
-          ${isUploading ? "pointer-events-none opacity-60" : ""}
-        `}
+        onClick={() => { if (!isUploading) fileInputRef.current?.click() }}
+        className={[
+          "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
+          dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
+          isUploading ? "pointer-events-none opacity-60" : "",
+        ].join(" ")}
       >
         <input
           ref={fileInputRef}
@@ -166,22 +163,20 @@ export function KnowledgeBaseUpload({ chatbotId }: KnowledgeBaseUploadProps) {
         />
 
         {isUploading ? (
-          <>
+          <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <p className="text-sm font-medium">{uploadProgress}</p>
-          </>
+          </div>
         ) : (
-          <>
-            <FileUp className="h-8 w-8 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-sm font-medium">
-                Drop a file here or <span className="text-primary underline">browse</span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Supports PDF, TXT, DOCX, XLSX (max 10MB)
-              </p>
-            </div>
-          </>
+          <div className="flex flex-col items-center gap-2">
+            <Upload className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">
+              Drop a file here or <span className="text-primary underline">browse</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Supports PDF, TXT, DOCX, XLSX (max 10 MB)
+            </p>
+          </div>
         )}
       </div>
 
