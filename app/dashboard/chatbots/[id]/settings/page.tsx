@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Save, Copy, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { FacebookPageSelector } from "@/components/facebook-page-selector"
+import { KnowledgeBaseUpload } from "@/components/knowledge-base-upload"
 
 interface ChatbotForm {
   id: string
@@ -25,7 +26,6 @@ interface ChatbotForm {
   ai_model: string
   model_tier: string
   system_prompt: string
-  rag_store_id: string
   handoff_email: string
   notify_emails: string   // stored as comma-separated string in the form
   enable_human_handoff: boolean
@@ -66,7 +66,6 @@ export default function ChatbotSettingsPage() {
         ai_model: data.ai_model ?? "gemini",
         model_tier: data.model_tier ?? "basic",
         system_prompt: data.system_prompt ?? "",
-        rag_store_id: data.rag_store_id ?? "",
         handoff_email: data.handoff_email ?? "",
         notify_emails: Array.isArray(data.notify_emails) ? data.notify_emails.join(", ") : "",
         enable_human_handoff: data.enable_human_handoff ?? true,
@@ -94,7 +93,6 @@ export default function ChatbotSettingsPage() {
         ai_model: form.ai_model,
         model_tier: form.model_tier,
         system_prompt: form.system_prompt,
-        rag_store_id: form.rag_store_id || undefined,
         handoff_email: form.handoff_email || undefined,
         notify_emails: form.notify_emails
           ? form.notify_emails.split(",").map((e) => e.trim()).filter(Boolean)
@@ -226,15 +224,13 @@ export default function ChatbotSettingsPage() {
                     rows={10}
                   />
                 </div>
+                <Separator />
                 <div className="space-y-2">
-                  <Label htmlFor="rag_store_id">RAG Store ID</Label>
-                  <Input
-                    id="rag_store_id"
-                    placeholder="fileSearchStores/frag-xxxxx"
-                    value={form.rag_store_id}
-                    onChange={(e) => set("rag_store_id", e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">Gemini File Search Store ID for this business</p>
+                  <Label>Knowledge Base Files</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload documents that your chatbot will use to answer questions. The content is automatically extracted and used as context.
+                  </p>
+                  <KnowledgeBaseUpload chatbotId={id} />
                 </div>
               </CardContent>
             </Card>

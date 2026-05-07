@@ -29,7 +29,6 @@ export default function NewChatbotPage() {
     model_tier: "basic",
     system_prompt:
       "You are a helpful AI assistant for our business. Answer questions about our products and services professionally.",
-    rag_store_id: "",
     handoff_email: "",
     notify_emails: "",
     enable_human_handoff: true,
@@ -190,16 +189,9 @@ export default function NewChatbotPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="rag_store_id">RAG Store ID</Label>
-              <Input
-                id="rag_store_id"
-                placeholder="e.g. fileSearchStores/frag-xxxxx"
-                value={form.rag_store_id}
-                onChange={(e) => set("rag_store_id", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Your Gemini File Search Store ID for this business's knowledge base
+            <div className="rounded-lg border border-dashed border-muted-foreground/25 p-4">
+              <p className="text-sm text-muted-foreground">
+                After creating your chatbot, you can upload knowledge base files (PDF, TXT, DOCX, XLSX) in the chatbot settings page. These documents will be used as context for answering questions.
               </p>
             </div>
           </CardContent>
