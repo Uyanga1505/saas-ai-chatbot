@@ -235,7 +235,7 @@ export default function ChatbotSettingsPage() {
                       <input
                         ref={promptFileRef}
                         type="file"
-                        accept=".txt,.md,.text"
+                        accept=".pdf,.txt,.docx,.xlsx,.md,.text,.csv"
                         onChange={handlePromptFileUpload}
                         className="hidden"
                       />
