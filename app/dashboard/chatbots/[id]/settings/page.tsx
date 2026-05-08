@@ -45,15 +45,20 @@ export default function ChatbotSettingsPage() {
   const [copiedWebhook, setCopiedWebhook] = useState(false)
   const promptFileRef = useRef<HTMLInputElement>(null)
 
-  const handlePromptFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePromptFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string
-      if (text) set("system_prompt", text)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/extract-text", { method: "POST", body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to extract text")
+      if (data.text) set("system_prompt", data.text)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to read file")
     }
-    reader.readAsText(file)
     if (promptFileRef.current) promptFileRef.current.value = ""
   }
 
