@@ -44,10 +44,6 @@ export default function NewChatbotPage() {
   const handlePromptFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.type !== "text/plain" && !file.name.endsWith(".txt")) {
-      setError("Only .txt files are supported for prompt upload.")
-      return
-    }
     const reader = new FileReader()
     reader.onload = (ev) => {
       const text = ev.target?.result as string
@@ -255,7 +251,7 @@ export default function NewChatbotPage() {
                   <input
                     ref={promptFileRef}
                     type="file"
-                    accept=".txt"
+                    accept=".txt,.md,.text"
                     onChange={handlePromptFileUpload}
                     className="hidden"
                   />
