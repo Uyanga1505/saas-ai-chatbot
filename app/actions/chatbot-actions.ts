@@ -3,6 +3,42 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+// ─── Facebook Page Subscription ──────────────────────────────────────────────
+
+/**
+ * Subscribe a Facebook page to our app's webhook so Messenger events
+ * (messages, postbacks) are delivered to our webhook endpoint.
+ * This must be called whenever a page is connected or its token changes.
+ */
+async function subscribeFacebookPage(pageId: string, accessToken: string) {
+  if (!pageId || !accessToken) return
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v23.0/${pageId}/subscribed_apps`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          subscribed_fields: "messages,messaging_postbacks",
+          access_token: accessToken,
+        }),
+      }
+    )
+
+    const data = await res.json()
+
+    if (data.success) {
+      console.log(`[chatbot-actions] Page ${pageId} subscribed to webhook`)
+    } else {
+      console.error(`[chatbot-actions] Failed to subscribe page ${pageId}:`, data)
+    }
+  } catch (err) {
+    // Don't throw — subscription failure shouldn't block chatbot creation
+    console.error(`[chatbot-actions] Error subscribing page ${pageId}:`, err)
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ChatbotFormData = {
@@ -87,6 +123,10 @@ export async function createChatbot(formData: ChatbotFormData) {
     .single()
 
   if (error) throw new Error(error.message)
+
+  // Auto-subscribe the Facebook page to our webhook
+  await subscribeFacebookPage(formData.messenger_page_id, formData.messenger_access_token)
+
   revalidatePath("/dashboard/chatbots")
   return { id: data.id }
 }
@@ -108,6 +148,12 @@ export async function updateChatbot(id: string, formData: Partial<ChatbotFormDat
     .eq("user_id", user.id)
 
   if (error) throw new Error(error.message)
+
+  // Re-subscribe if the Facebook page or token changed
+  if (formData.messenger_page_id && formData.messenger_access_token) {
+    await subscribeFacebookPage(formData.messenger_page_id, formData.messenger_access_token)
+  }
+
   revalidatePath(`/dashboard/chatbots/${id}/settings`)
   revalidatePath("/dashboard/chatbots")
 }
