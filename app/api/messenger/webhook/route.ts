@@ -59,7 +59,7 @@ async function processWebhook(body: Record<string, unknown>) {
     return
   }
 
-  // Log the incoming message to n8n_chat_histories so n8n can pick it up
+  // Store the incoming human message
   // NOTE: Do NOT include sender_id — it's a generated column (auto-extracted from session_id)
   const { error: insertError } = await supabase.from("n8n_chat_histories").insert({
     session_id: `fb_${senderId}`,
@@ -69,5 +69,25 @@ async function processWebhook(body: Record<string, unknown>) {
 
   if (insertError) {
     console.error(`[webhook] Failed to insert message:`, insertError)
+  }
+
+  // Forward the full Facebook payload to n8n for AI processing and reply
+  const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL
+  if (n8nWebhookUrl) {
+    try {
+      const n8nResponse = await fetch(n8nWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entry: [{ messaging: [{ sender: { id: senderId }, recipient: { id: pageId }, message: { text: messageText } }] }],
+          object: "page",
+        }),
+      })
+      if (!n8nResponse.ok) {
+        console.error(`[webhook] n8n responded with ${n8nResponse.status}`)
+      }
+    } catch (err) {
+      console.error("[webhook] Failed to forward to n8n:", err)
+    }
   }
 }
