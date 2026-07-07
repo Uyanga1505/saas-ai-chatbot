@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
@@ -35,24 +35,31 @@ async function processWebhook(body: Record<string, unknown>) {
   // Skip echo messages (bot talking to itself)
   if (!pageId || !senderId || !messageText || senderId === pageId) return
 
-  const supabase = await createClient()
+  // Use admin client — webhook has no user session, so cookie-based auth won't work
+  const supabase = createAdminClient()
 
   // Find the active chatbot for this Facebook page
-  const { data: chatbot } = await supabase
+  const { data: chatbot, error: chatbotError } = await supabase
     .from("chatbots")
     .select("id, system_prompt, ai_model, messenger_access_token, enable_human_handoff")
     .eq("messenger_page_id", pageId)
     .eq("is_active", true)
     .single()
 
-  if (!chatbot) {
-    console.warn(`[webhook] No active chatbot found for page_id: ${pageId}`)
+  if (chatbotError || !chatbot) {
+    console.error(`[webhook] No active chatbot found for page_id: ${pageId}`, chatbotError)
     return
   }
 
   // Log the incoming message to n8n_chat_histories so n8n can pick it up
-  await supabase.from("n8n_chat_histories").insert({
+  const { error: insertError } = await supabase.from("n8n_chat_histories").insert({
     session_id: `fb_${senderId}`,
-    message: { type: "human", content: messageText },
+    sender_id: senderId,
+    page_id: pageId,
+    message: JSON.stringify({ type: "human", content: messageText }),
   })
+
+  if (insertError) {
+    console.error(`[webhook] Failed to insert message:`, insertError)
+  }
 }
