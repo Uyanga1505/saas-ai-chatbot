@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 
+// ─── Facebook Webhook Verification ───────────────────────────────────────────
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get("hub.mode")
@@ -14,90 +16,146 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 }
 
+// ─── Incoming Message Handler ────────────────────────────────────────────────
+//
+// ASYNC & DECOUPLED ARCHITECTURE:
+//
+// 1. Parse the Facebook payload
+// 2. Dedup by facebook message ID (mid) — skip if already stored
+// 3. Store in Supabase with processing_status = 'pending'
+// 4. Return 200 immediately (Facebook is happy, no retries)
+// 5. Fire-and-forget push to n8n (best-effort, not awaited)
+// 6. If n8n push fails, the polling endpoint picks up pending messages
+//
+// This ensures Facebook never times out, messages are never lost, and
+// duplicate deliveries are silently ignored.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   const body = await req.json()
 
-  // Process the webhook synchronously — Vercel may kill the function
-  // after the response is sent, so we can't use fire-and-forget.
-  // Facebook allows up to 20s before timing out.
   try {
-    await processWebhook(body)
+    const messageId = await storeMessage(body)
+
+    if (messageId) {
+      // Best-effort push to n8n — NOT awaited.
+      // If this fails (n8n down, slow, etc.), the message stays 'pending'
+      // in Supabase and n8n's scheduled poll will pick it up.
+      fireAndForgetN8n(body, messageId).catch((err) =>
+        console.error("[webhook] n8n push failed (pending in queue):", err)
+      )
+    }
   } catch (err) {
-    console.error("[webhook] processWebhook error:", err)
+    console.error("[webhook] storeMessage error:", err)
   }
 
+  // Always return 200 immediately — Facebook must not wait
   return NextResponse.json({ status: "ok" }, { status: 200 })
 }
 
-async function processWebhook(body: Record<string, unknown>) {
+// ─── Store Message with Dedup ────────────────────────────────────────────────
+
+async function storeMessage(
+  body: Record<string, unknown>
+): Promise<number | null> {
   const entry = (body.entry as Record<string, unknown>[])?.[0]
-  if (!entry) return
+  if (!entry) return null
 
   const messaging = (entry.messaging as Record<string, unknown>[])?.[0]
-  if (!messaging) return
+  if (!messaging) return null
 
   const pageId = (messaging.recipient as Record<string, string>)?.id
   const senderId = (messaging.sender as Record<string, string>)?.id
-  const messageText = (messaging.message as Record<string, string>)?.text
+  const message = messaging.message as Record<string, string> | undefined
+  const messageText = message?.text
+  const messageMid = message?.mid // Facebook's unique message ID
 
-  // Skip echo messages (bot talking to itself)
-  if (!pageId || !senderId || !messageText || senderId === pageId) return
+  // Skip echo messages (bot talking to itself) or empty messages
+  if (!pageId || !senderId || !messageText || senderId === pageId) return null
 
-  // Use admin client — webhook has no user session, so cookie-based auth won't work
+  // Use admin client — webhook has no user session
   const supabase = createAdminClient()
 
-  // Find the active chatbot for this Facebook page
+  // ── Dedup: skip if this Facebook message ID was already stored ──
+  if (messageMid) {
+    const { data: existing } = await supabase
+      .from("n8n_chat_histories")
+      .select("id")
+      .eq("facebook_mid", messageMid)
+      .maybeSingle()
+
+    if (existing) {
+      console.log(`[webhook] Duplicate mid=${messageMid}, skipping`)
+      return null
+    }
+  }
+
+  // ── Verify an active chatbot exists for this page ──
   const { data: chatbot, error: chatbotError } = await supabase
     .from("chatbots")
-    .select("id, system_prompt, ai_model, messenger_access_token, enable_human_handoff")
+    .select("id")
     .eq("messenger_page_id", pageId)
     .eq("is_active", true)
     .single()
 
   if (chatbotError || !chatbot) {
-    console.error(`[webhook] No active chatbot found for page_id: ${pageId}`, chatbotError)
-    return
+    console.error(
+      `[webhook] No active chatbot for page ${pageId}`,
+      chatbotError
+    )
+    return null
   }
 
-  // Store the incoming human message
-  // NOTE: Do NOT include sender_id — it's a generated column (auto-extracted from session_id)
-  const { error: insertError } = await supabase.from("n8n_chat_histories").insert({
-    session_id: `fb_${senderId}`,
-    page_id: pageId,
-    message: { type: "human", content: messageText },
-  })
+  // ── Store with status='pending' and the raw payload for async processing ──
+  // NOTE: Do NOT include sender_id — it's a generated column
+  const { data: inserted, error: insertError } = await supabase
+    .from("n8n_chat_histories")
+    .insert({
+      session_id: `fb_${senderId}`,
+      page_id: pageId,
+      message: { type: "human", content: messageText },
+      facebook_mid: messageMid || null,
+      processing_status: "pending",
+      raw_payload: body,
+    })
+    .select("id")
+    .single()
 
   if (insertError) {
-    console.error(`[webhook] Failed to insert message:`, insertError)
+    // Handle unique constraint violation (race-condition dedup)
+    if (insertError.code === "23505") {
+      console.log(
+        `[webhook] Duplicate mid=${messageMid} (constraint), skipping`
+      )
+      return null
+    }
+    console.error("[webhook] Insert failed:", insertError)
+    return null
   }
 
-  // Forward the ORIGINAL Facebook payload to n8n for AI processing and reply.
-  // We pass the raw body so n8n receives all fields (timestamp, mid, etc.)
-  // exactly as Facebook sent them — the workflow expressions depend on this.
-  await forwardToN8n(body)
+  console.log(`[webhook] Stored message id=${inserted.id}, status=pending`)
+  return inserted.id
 }
 
-async function forwardToN8n(body: Record<string, unknown>) {
+// ─── Fire-and-Forget Push to n8n ─────────────────────────────────────────────
+
+async function fireAndForgetN8n(
+  body: Record<string, unknown>,
+  messageId: number
+) {
   const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL
-  if (!n8nWebhookUrl) {
-    console.error("[webhook] N8N_WEBHOOK_URL not set, skipping n8n forwarding")
-    return
-  }
+  if (!n8nWebhookUrl) return
 
-  try {
-    const res = await fetch(n8nWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
+  const res = await fetch(n8nWebhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      console.error(`[webhook] n8n responded with ${res.status}: ${text}`)
-    } else {
-      console.log("[webhook] Successfully forwarded to n8n")
-    }
-  } catch (err) {
-    console.error("[webhook] Failed to forward to n8n:", err)
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    console.error(`[webhook] n8n ${res.status}: ${text}`)
+  } else {
+    console.log(`[webhook] Pushed message id=${messageId} to n8n`)
   }
 }
