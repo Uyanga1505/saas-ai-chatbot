@@ -38,18 +38,22 @@ export async function POST(req: NextRequest) {
     const messageId = await storeMessage(body)
 
     if (messageId) {
-      // Best-effort push to n8n — NOT awaited.
-      // If this fails (n8n down, slow, etc.), the message stays 'pending'
-      // in Supabase and n8n's scheduled poll will pick it up.
-      fireAndForgetN8n(body, messageId).catch((err) =>
+      // Push to n8n — must be awaited because Vercel kills the function
+      // after the response is sent. The push itself is fast (~200ms) since
+      // n8n's "Respond 200" node fires early. The slow AI processing
+      // happens inside n8n AFTER it has already responded to us.
+      // If n8n is down, we catch the error — the message stays 'pending'
+      // in Supabase and the polling endpoint will retry it.
+      try {
+        await pushToN8n(body, messageId)
+      } catch (err) {
         console.error("[webhook] n8n push failed (pending in queue):", err)
-      )
+      }
     }
   } catch (err) {
     console.error("[webhook] storeMessage error:", err)
   }
 
-  // Always return 200 immediately — Facebook must not wait
   return NextResponse.json({ status: "ok" }, { status: 200 })
 }
 
@@ -137,19 +141,23 @@ async function storeMessage(
   return inserted.id
 }
 
-// ─── Fire-and-Forget Push to n8n ─────────────────────────────────────────────
+// ─── Push to n8n ─────────────────────────────────────────────────────────────
 
-async function fireAndForgetN8n(
+async function pushToN8n(
   body: Record<string, unknown>,
   messageId: number
 ) {
   const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL
   if (!n8nWebhookUrl) return
 
+  // Add _queue_id to the payload so n8n can mark the message as done
+  // after processing. Existing expressions like body.entry[0]... still work.
+  const enrichedBody = { ...body, _queue_id: messageId }
+
   const res = await fetch(n8nWebhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(enrichedBody),
   })
 
   if (!res.ok) {
