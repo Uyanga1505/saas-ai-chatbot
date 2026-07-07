@@ -15,9 +15,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Acknowledge Facebook immediately (required within 20s)
   const body = await req.json()
-  processWebhook(body).catch(console.error)
+
+  // Process the webhook synchronously — Vercel may kill the function
+  // after the response is sent, so we can't use fire-and-forget.
+  // Facebook allows up to 20s before timing out.
+  try {
+    await processWebhook(body)
+  } catch (err) {
+    console.error("[webhook] processWebhook error:", err)
+  }
+
   return NextResponse.json({ status: "ok" }, { status: 200 })
 }
 
