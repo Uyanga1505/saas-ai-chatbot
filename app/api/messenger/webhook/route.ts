@@ -71,23 +71,33 @@ async function processWebhook(body: Record<string, unknown>) {
     console.error(`[webhook] Failed to insert message:`, insertError)
   }
 
-  // Forward the full Facebook payload to n8n for AI processing and reply
+  // Forward the ORIGINAL Facebook payload to n8n for AI processing and reply.
+  // We pass the raw body so n8n receives all fields (timestamp, mid, etc.)
+  // exactly as Facebook sent them — the workflow expressions depend on this.
+  await forwardToN8n(body)
+}
+
+async function forwardToN8n(body: Record<string, unknown>) {
   const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL
-  if (n8nWebhookUrl) {
-    try {
-      const n8nResponse = await fetch(n8nWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entry: [{ messaging: [{ sender: { id: senderId }, recipient: { id: pageId }, message: { text: messageText } }] }],
-          object: "page",
-        }),
-      })
-      if (!n8nResponse.ok) {
-        console.error(`[webhook] n8n responded with ${n8nResponse.status}`)
-      }
-    } catch (err) {
-      console.error("[webhook] Failed to forward to n8n:", err)
+  if (!n8nWebhookUrl) {
+    console.error("[webhook] N8N_WEBHOOK_URL not set, skipping n8n forwarding")
+    return
+  }
+
+  try {
+    const res = await fetch(n8nWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      console.error(`[webhook] n8n responded with ${res.status}: ${text}`)
+    } else {
+      console.log("[webhook] Successfully forwarded to n8n")
     }
+  } catch (err) {
+    console.error("[webhook] Failed to forward to n8n:", err)
   }
 }
