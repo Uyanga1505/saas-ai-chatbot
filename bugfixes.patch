@@ -1,0 +1,194 @@
+From e1b6e09488020fb79ac088021e19834e32d13b90 Mon Sep 17 00:00:00 2001
+From: Uyanga B <uyanga.bayaraa@customaware.com>
+Date: Thu, 23 Apr 2026 16:38:44 +0800
+Subject: [PATCH] fix: 6 bugs - signup company name, dead links, chart crashes,
+ settings profile, intent filter
+
+1. Pass companyName to signUp action (was captured but never sent)
+2. Fix dead chatbot links (test/conversations routes don't exist)
+3. Add error handling for createChatbot when no ID returned
+4. Fix analytics charts - transform object distributions to arrays
+5. Add missing Intent filter dropdown on Leads page
+6. Fix Settings profile - read from user_metadata instead of top-level
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ app/actions/auth-actions.ts         |  3 ++-
+ app/auth/signup/page.tsx            |  2 +-
+ app/dashboard/analytics/page.tsx    | 17 ++++++++++++++---
+ app/dashboard/chatbots/new/page.tsx |  3 +++
+ app/dashboard/chatbots/page.tsx     | 10 ++--------
+ app/dashboard/leads/page.tsx        | 15 ++++++++++++++-
+ app/dashboard/settings/page.tsx     | 11 ++++++++---
+ 7 files changed, 44 insertions(+), 17 deletions(-)
+
+diff --git a/app/actions/auth-actions.ts b/app/actions/auth-actions.ts
+index 4b3ccc2..0e26d12 100644
+--- a/app/actions/auth-actions.ts
++++ b/app/actions/auth-actions.ts
+@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
+ import { redirect } from "next/navigation"
+ import { headers } from "next/headers"
+ 
+-export async function signUp(email: string, password: string, fullName: string) {
++export async function signUp(email: string, password: string, fullName: string, companyName?: string) {
+   try {
+     const supabase = await createClient()
+ 
+@@ -22,6 +22,7 @@ export async function signUp(email: string, password: string, fullName: string)
+         emailRedirectTo: `${origin}/auth/callback`,
+         data: {
+           full_name: fullName,
++          company_name: companyName || "",
+         },
+       },
+     })
+diff --git a/app/auth/signup/page.tsx b/app/auth/signup/page.tsx
+index ab5425a..6c2c7c1 100644
+--- a/app/auth/signup/page.tsx
++++ b/app/auth/signup/page.tsx
+@@ -26,7 +26,7 @@ export default function SignupPage() {
+     setError(null)
+ 
+     try {
+-      const result = await signUp(email, password, fullName)
++      const result = await signUp(email, password, fullName, companyName)
+ 
+       if (result.error) {
+         setError(result.error)
+diff --git a/app/dashboard/analytics/page.tsx b/app/dashboard/analytics/page.tsx
+index 33b49a2..ba0aaed 100644
+--- a/app/dashboard/analytics/page.tsx
++++ b/app/dashboard/analytics/page.tsx
+@@ -50,8 +50,19 @@ export default function AnalyticsPage() {
+     )
+   }
+ 
+-  const sentimentData = insightStats?.sentimentDistribution || []
+-  const intentData = insightStats?.intentDistribution || []
++  // Transform object distributions { key: count } into arrays [{ sentiment/intent, count }]
++  const sentimentData = insightStats?.summary?.sentimentDistribution
++    ? Object.entries(insightStats.summary.sentimentDistribution).map(([key, value]) => ({
++        sentiment: key,
++        count: value as number,
++      }))
++    : []
++  const intentData = insightStats?.summary?.intentDistribution
++    ? Object.entries(insightStats.summary.intentDistribution).map(([key, value]) => ({
++        intent: key,
++        count: value as number,
++      }))
++    : []
+ 
+   return (
+     <div className="space-y-6">
+@@ -186,7 +197,7 @@ export default function AnalyticsPage() {
+           <div className="grid gap-4 md:grid-cols-3">
+             <div className="space-y-2">
+               <p className="text-sm font-medium">Total Insights</p>
+-              <p className="text-2xl font-bold">{insightStats?.totalInsights || 0}</p>
++              <p className="text-2xl font-bold">{insightStats?.summary?.totalInsights || 0}</p>
+             </div>
+             <div className="space-y-2">
+               <p className="text-sm font-medium">Most Common Sentiment</p>
+diff --git a/app/dashboard/chatbots/new/page.tsx b/app/dashboard/chatbots/new/page.tsx
+index 42169a8..d9b7b5a 100644
+--- a/app/dashboard/chatbots/new/page.tsx
++++ b/app/dashboard/chatbots/new/page.tsx
+@@ -49,6 +49,9 @@ export default function NewChatbotPage() {
+           ? form.notify_emails.split(",").map((e) => e.trim()).filter(Boolean)
+           : [],
+       })
++      if (!result?.id) {
++        throw new Error("Failed to create chatbot — no ID returned")
++      }
+       router.push(`/dashboard/chatbots/${result.id}/settings`)
+     } catch (err: unknown) {
+       setError(err instanceof Error ? err.message : "Something went wrong")
+diff --git a/app/dashboard/chatbots/page.tsx b/app/dashboard/chatbots/page.tsx
+index fe03dd0..d3db354 100644
+--- a/app/dashboard/chatbots/page.tsx
++++ b/app/dashboard/chatbots/page.tsx
+@@ -3,7 +3,7 @@
+ import { Button } from "@/components/ui/button"
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+ import { Badge } from "@/components/ui/badge"
+-import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare, TestTube } from "lucide-react"
++import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare } from "lucide-react"
+ import Link from "next/link"
+ import { useState, useEffect } from "react"
+ import { getChatbots, toggleChatbotStatus, deleteChatbot } from "@/app/actions/chatbot-actions"
+@@ -144,13 +144,7 @@ export default function ChatbotsPage() {
+                   </Button>
+ 
+                   <Button variant="outline" size="sm" asChild>
+-                    <Link href={`/dashboard/chatbots/${chatbot.id}/test`}>
+-                      <TestTube className="h-4 w-4" />
+-                    </Link>
+-                  </Button>
+-
+-                  <Button variant="outline" size="sm" asChild>
+-                    <Link href={`/dashboard/chatbots/${chatbot.id}/conversations`}>
++                    <Link href="/dashboard/conversations">
+                       <MessageSquare className="h-4 w-4" />
+                     </Link>
+                   </Button>
+diff --git a/app/dashboard/leads/page.tsx b/app/dashboard/leads/page.tsx
+index 4a2e2f4..d3b2747 100644
+--- a/app/dashboard/leads/page.tsx
++++ b/app/dashboard/leads/page.tsx
+@@ -203,7 +203,7 @@ export default function LeadsPage() {
+       </div>
+ 
+       {/* Filters */}
+-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
++      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+         <div className="relative sm:col-span-2">
+           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+           <Input
+@@ -244,6 +244,19 @@ export default function LeadsPage() {
+             <SelectItem value="without">Without Insights</SelectItem>
+           </SelectContent>
+         </Select>
++        <Select value={filterIntent} onValueChange={setFilterIntent}>
++          <SelectTrigger>
++            <SelectValue placeholder="Intent" />
++          </SelectTrigger>
++          <SelectContent>
++            <SelectItem value="all">All Intents</SelectItem>
++            <SelectItem value="purchase">Purchase</SelectItem>
++            <SelectItem value="inquiry">Inquiry</SelectItem>
++            <SelectItem value="support">Support</SelectItem>
++            <SelectItem value="complaint">Complaint</SelectItem>
++            <SelectItem value="unknown">Unknown</SelectItem>
++          </SelectContent>
++        </Select>
+         <Select value={filterHasContact} onValueChange={setFilterHasContact}>
+           <SelectTrigger>
+             <SelectValue placeholder="Contact Info" />
+diff --git a/app/dashboard/settings/page.tsx b/app/dashboard/settings/page.tsx
+index d44e56b..7915ed0 100644
+--- a/app/dashboard/settings/page.tsx
++++ b/app/dashboard/settings/page.tsx
+@@ -37,10 +37,15 @@ export default function SettingsPage() {
+     try {
+       const user = await getCurrentUser()
+       if (user) {
+-        setProfile(user as UserProfile)
++        setProfile({
++          id: user.id,
++          email: user.email || "",
++          full_name: user.user_metadata?.full_name || null,
++          company_name: user.user_metadata?.company_name || null,
++        })
+         setFormData({
+-          full_name: user.full_name || "",
+-          company_name: user.company_name || "",
++          full_name: user.user_metadata?.full_name || "",
++          company_name: user.user_metadata?.company_name || "",
+           email: user.email || "",
+         })
+       }
+-- 
+2.34.1
+

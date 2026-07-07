@@ -1,0 +1,792 @@
+From e1b6e09488020fb79ac088021e19834e32d13b90 Mon Sep 17 00:00:00 2001
+From: Uyanga B <uyanga.bayaraa@customaware.com>
+Date: Thu, 23 Apr 2026 16:38:44 +0800
+Subject: [PATCH 1/2] fix: 6 bugs - signup company name, dead links, chart
+ crashes, settings profile, intent filter
+
+1. Pass companyName to signUp action (was captured but never sent)
+2. Fix dead chatbot links (test/conversations routes don't exist)
+3. Add error handling for createChatbot when no ID returned
+4. Fix analytics charts - transform object distributions to arrays
+5. Add missing Intent filter dropdown on Leads page
+6. Fix Settings profile - read from user_metadata instead of top-level
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ app/actions/auth-actions.ts         |  3 ++-
+ app/auth/signup/page.tsx            |  2 +-
+ app/dashboard/analytics/page.tsx    | 17 ++++++++++++++---
+ app/dashboard/chatbots/new/page.tsx |  3 +++
+ app/dashboard/chatbots/page.tsx     | 10 ++--------
+ app/dashboard/leads/page.tsx        | 15 ++++++++++++++-
+ app/dashboard/settings/page.tsx     | 11 ++++++++---
+ 7 files changed, 44 insertions(+), 17 deletions(-)
+
+diff --git a/app/actions/auth-actions.ts b/app/actions/auth-actions.ts
+index 4b3ccc2..0e26d12 100644
+--- a/app/actions/auth-actions.ts
++++ b/app/actions/auth-actions.ts
+@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
+ import { redirect } from "next/navigation"
+ import { headers } from "next/headers"
+ 
+-export async function signUp(email: string, password: string, fullName: string) {
++export async function signUp(email: string, password: string, fullName: string, companyName?: string) {
+   try {
+     const supabase = await createClient()
+ 
+@@ -22,6 +22,7 @@ export async function signUp(email: string, password: string, fullName: string)
+         emailRedirectTo: `${origin}/auth/callback`,
+         data: {
+           full_name: fullName,
++          company_name: companyName || "",
+         },
+       },
+     })
+diff --git a/app/auth/signup/page.tsx b/app/auth/signup/page.tsx
+index ab5425a..6c2c7c1 100644
+--- a/app/auth/signup/page.tsx
++++ b/app/auth/signup/page.tsx
+@@ -26,7 +26,7 @@ export default function SignupPage() {
+     setError(null)
+ 
+     try {
+-      const result = await signUp(email, password, fullName)
++      const result = await signUp(email, password, fullName, companyName)
+ 
+       if (result.error) {
+         setError(result.error)
+diff --git a/app/dashboard/analytics/page.tsx b/app/dashboard/analytics/page.tsx
+index 33b49a2..ba0aaed 100644
+--- a/app/dashboard/analytics/page.tsx
++++ b/app/dashboard/analytics/page.tsx
+@@ -50,8 +50,19 @@ export default function AnalyticsPage() {
+     )
+   }
+ 
+-  const sentimentData = insightStats?.sentimentDistribution || []
+-  const intentData = insightStats?.intentDistribution || []
++  // Transform object distributions { key: count } into arrays [{ sentiment/intent, count }]
++  const sentimentData = insightStats?.summary?.sentimentDistribution
++    ? Object.entries(insightStats.summary.sentimentDistribution).map(([key, value]) => ({
++        sentiment: key,
++        count: value as number,
++      }))
++    : []
++  const intentData = insightStats?.summary?.intentDistribution
++    ? Object.entries(insightStats.summary.intentDistribution).map(([key, value]) => ({
++        intent: key,
++        count: value as number,
++      }))
++    : []
+ 
+   return (
+     <div className="space-y-6">
+@@ -186,7 +197,7 @@ export default function AnalyticsPage() {
+           <div className="grid gap-4 md:grid-cols-3">
+             <div className="space-y-2">
+               <p className="text-sm font-medium">Total Insights</p>
+-              <p className="text-2xl font-bold">{insightStats?.totalInsights || 0}</p>
++              <p className="text-2xl font-bold">{insightStats?.summary?.totalInsights || 0}</p>
+             </div>
+             <div className="space-y-2">
+               <p className="text-sm font-medium">Most Common Sentiment</p>
+diff --git a/app/dashboard/chatbots/new/page.tsx b/app/dashboard/chatbots/new/page.tsx
+index 42169a8..d9b7b5a 100644
+--- a/app/dashboard/chatbots/new/page.tsx
++++ b/app/dashboard/chatbots/new/page.tsx
+@@ -49,6 +49,9 @@ export default function NewChatbotPage() {
+           ? form.notify_emails.split(",").map((e) => e.trim()).filter(Boolean)
+           : [],
+       })
++      if (!result?.id) {
++        throw new Error("Failed to create chatbot — no ID returned")
++      }
+       router.push(`/dashboard/chatbots/${result.id}/settings`)
+     } catch (err: unknown) {
+       setError(err instanceof Error ? err.message : "Something went wrong")
+diff --git a/app/dashboard/chatbots/page.tsx b/app/dashboard/chatbots/page.tsx
+index fe03dd0..d3db354 100644
+--- a/app/dashboard/chatbots/page.tsx
++++ b/app/dashboard/chatbots/page.tsx
+@@ -3,7 +3,7 @@
+ import { Button } from "@/components/ui/button"
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+ import { Badge } from "@/components/ui/badge"
+-import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare, TestTube } from "lucide-react"
++import { Plus, Bot, Settings, Play, Pause, Trash2, MessageSquare } from "lucide-react"
+ import Link from "next/link"
+ import { useState, useEffect } from "react"
+ import { getChatbots, toggleChatbotStatus, deleteChatbot } from "@/app/actions/chatbot-actions"
+@@ -144,13 +144,7 @@ export default function ChatbotsPage() {
+                   </Button>
+ 
+                   <Button variant="outline" size="sm" asChild>
+-                    <Link href={`/dashboard/chatbots/${chatbot.id}/test`}>
+-                      <TestTube className="h-4 w-4" />
+-                    </Link>
+-                  </Button>
+-
+-                  <Button variant="outline" size="sm" asChild>
+-                    <Link href={`/dashboard/chatbots/${chatbot.id}/conversations`}>
++                    <Link href="/dashboard/conversations">
+                       <MessageSquare className="h-4 w-4" />
+                     </Link>
+                   </Button>
+diff --git a/app/dashboard/leads/page.tsx b/app/dashboard/leads/page.tsx
+index 4a2e2f4..d3b2747 100644
+--- a/app/dashboard/leads/page.tsx
++++ b/app/dashboard/leads/page.tsx
+@@ -203,7 +203,7 @@ export default function LeadsPage() {
+       </div>
+ 
+       {/* Filters */}
+-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
++      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+         <div className="relative sm:col-span-2">
+           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+           <Input
+@@ -244,6 +244,19 @@ export default function LeadsPage() {
+             <SelectItem value="without">Without Insights</SelectItem>
+           </SelectContent>
+         </Select>
++        <Select value={filterIntent} onValueChange={setFilterIntent}>
++          <SelectTrigger>
++            <SelectValue placeholder="Intent" />
++          </SelectTrigger>
++          <SelectContent>
++            <SelectItem value="all">All Intents</SelectItem>
++            <SelectItem value="purchase">Purchase</SelectItem>
++            <SelectItem value="inquiry">Inquiry</SelectItem>
++            <SelectItem value="support">Support</SelectItem>
++            <SelectItem value="complaint">Complaint</SelectItem>
++            <SelectItem value="unknown">Unknown</SelectItem>
++          </SelectContent>
++        </Select>
+         <Select value={filterHasContact} onValueChange={setFilterHasContact}>
+           <SelectTrigger>
+             <SelectValue placeholder="Contact Info" />
+diff --git a/app/dashboard/settings/page.tsx b/app/dashboard/settings/page.tsx
+index d44e56b..7915ed0 100644
+--- a/app/dashboard/settings/page.tsx
++++ b/app/dashboard/settings/page.tsx
+@@ -37,10 +37,15 @@ export default function SettingsPage() {
+     try {
+       const user = await getCurrentUser()
+       if (user) {
+-        setProfile(user as UserProfile)
++        setProfile({
++          id: user.id,
++          email: user.email || "",
++          full_name: user.user_metadata?.full_name || null,
++          company_name: user.user_metadata?.company_name || null,
++        })
+         setFormData({
+-          full_name: user.full_name || "",
+-          company_name: user.company_name || "",
++          full_name: user.user_metadata?.full_name || "",
++          company_name: user.user_metadata?.company_name || "",
+           email: user.email || "",
+         })
+       }
+-- 
+2.34.1
+
+
+From 2e21ee27a0646e4598cbefbea51366bfc1cedc84 Mon Sep 17 00:00:00 2001
+From: Uyanga B <uyanga.bayaraa@customaware.com>
+Date: Thu, 7 May 2026 11:14:40 +0800
+Subject: [PATCH 2/2] feat: Facebook OAuth page selector - auto-connect pages
+ without manual tokens
+
+- Add FacebookPageSelector component with FB SDK login flow
+- Users log in with Facebook, see their Pages, click to connect
+- API route exchanges short-lived tokens for long-lived page tokens
+- Replace manual page_id/access_token fields in New Chatbot page
+- Replace manual fields in Chatbot Settings page
+- Add NEXT_PUBLIC_FACEBOOK_APP_ID and FACEBOOK_APP_SECRET env vars
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ .claude/settings.local.json                   |  10 +
+ .claude/worktrees/wizardly-davinci            |   1 -
+ .env.example                                  |   5 +
+ app/api/facebook/exchange-token/route.ts      |  72 +++++
+ app/dashboard/chatbots/[id]/settings/page.tsx |  45 +--
+ app/dashboard/chatbots/new/page.tsx           |  45 ++-
+ components/facebook-page-selector.tsx         | 306 ++++++++++++++++++
+ 7 files changed, 427 insertions(+), 57 deletions(-)
+ create mode 100644 .claude/settings.local.json
+ delete mode 160000 .claude/worktrees/wizardly-davinci
+ create mode 100644 app/api/facebook/exchange-token/route.ts
+ create mode 100644 components/facebook-page-selector.tsx
+
+diff --git a/.claude/settings.local.json b/.claude/settings.local.json
+new file mode 100644
+index 0000000..3253b55
+--- /dev/null
++++ b/.claude/settings.local.json
+@@ -0,0 +1,10 @@
++{
++  "permissions": {
++    "allow": [
++      "Bash(xargs ls:*)",
++      "Bash(cat:*)",
++      "Read(//tmp/**)",
++      "WebFetch(domain:claude.ai)"
++    ]
++  }
++}
+diff --git a/.claude/worktrees/wizardly-davinci b/.claude/worktrees/wizardly-davinci
+deleted file mode 160000
+index d7ece2e..0000000
+--- a/.claude/worktrees/wizardly-davinci
++++ /dev/null
+@@ -1 +0,0 @@
+-Subproject commit d7ece2eb5c009de95dfda2d1d5cead66bd59ed17
+diff --git a/.env.example b/.env.example
+index d138c27..6b2805e 100644
+--- a/.env.example
++++ b/.env.example
+@@ -21,6 +21,11 @@ OPENAI_API_KEY=sk-...
+ # Use any random strong string, e.g.: openssl rand -hex 20
+ MESSENGER_VERIFY_TOKEN=your-random-secret-verify-token
+ 
++# ---- Facebook OAuth (for page selection) ----
++# Get these from: https://developers.facebook.com → Your App → Settings → Basic
++NEXT_PUBLIC_FACEBOOK_APP_ID=your-facebook-app-id
++FACEBOOK_APP_SECRET=your-facebook-app-secret
++
+ # ---- App URL (for production) ----
+ # Your deployed domain, e.g. https://chatflow.vercel.app
+ # Used to construct webhook URLs in the dashboard
+diff --git a/app/api/facebook/exchange-token/route.ts b/app/api/facebook/exchange-token/route.ts
+new file mode 100644
+index 0000000..3fbc98b
+--- /dev/null
++++ b/app/api/facebook/exchange-token/route.ts
+@@ -0,0 +1,72 @@
++import { NextRequest, NextResponse } from "next/server"
++
++/**
++ * Exchange short-lived Facebook page tokens for long-lived ones.
++ *
++ * Short-lived tokens expire in ~1 hour. Long-lived page tokens from
++ * the Graph API are effectively permanent (they don't expire unless
++ * the user de-authorizes the app or changes their password).
++ */
++export async function POST(request: NextRequest) {
++  try {
++    const { pages } = await request.json()
++
++    if (!pages || !Array.isArray(pages)) {
++      return NextResponse.json({ error: "Invalid request" }, { status: 400 })
++    }
++
++    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID
++    const appSecret = process.env.FACEBOOK_APP_SECRET
++
++    // If we don't have app secret, return pages as-is (short-lived tokens still work)
++    if (!appId || !appSecret) {
++      return NextResponse.json({
++        pages: pages.map((p: any) => ({
++          id: p.id,
++          name: p.name,
++          category: p.category,
++          access_token: p.access_token,
++          picture: p.picture_url ? { data: { url: p.picture_url } } : undefined,
++        })),
++      })
++    }
++
++    // Exchange each page token for a long-lived one
++    const longLivedPages = await Promise.all(
++      pages.map(async (page: any) => {
++        try {
++          const url = new URL("https://graph.facebook.com/v21.0/oauth/access_token")
++          url.searchParams.set("grant_type", "fb_exchange_token")
++          url.searchParams.set("client_id", appId)
++          url.searchParams.set("client_secret", appSecret)
++          url.searchParams.set("fb_exchange_token", page.access_token)
++
++          const res = await fetch(url.toString())
++          const data = await res.json()
++
++          return {
++            id: page.id,
++            name: page.name,
++            category: page.category,
++            access_token: data.access_token || page.access_token,
++            picture: page.picture_url ? { data: { url: page.picture_url } } : undefined,
++          }
++        } catch {
++          // If exchange fails for a specific page, return original token
++          return {
++            id: page.id,
++            name: page.name,
++            category: page.category,
++            access_token: page.access_token,
++            picture: page.picture_url ? { data: { url: page.picture_url } } : undefined,
++          }
++        }
++      })
++    )
++
++    return NextResponse.json({ pages: longLivedPages })
++  } catch (error) {
++    console.error("Token exchange error:", error)
++    return NextResponse.json({ error: "Token exchange failed" }, { status: 500 })
++  }
++}
+diff --git a/app/dashboard/chatbots/[id]/settings/page.tsx b/app/dashboard/chatbots/[id]/settings/page.tsx
+index cdd2b59..1120ad7 100644
+--- a/app/dashboard/chatbots/[id]/settings/page.tsx
++++ b/app/dashboard/chatbots/[id]/settings/page.tsx
+@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
+ import { Separator } from "@/components/ui/separator"
+ import { ArrowLeft, Save, Copy, CheckCircle } from "lucide-react"
+ import Link from "next/link"
++import { FacebookPageSelector } from "@/components/facebook-page-selector"
+ 
+ interface ChatbotForm {
+   id: string
+@@ -283,28 +284,22 @@ export default function ChatbotSettingsPage() {
+             <Card>
+               <CardHeader>
+                 <CardTitle>Messenger integration</CardTitle>
+-                <CardDescription>Your page ID and token — n8n uses these to send replies.</CardDescription>
++                <CardDescription>Connect or change the Facebook Page for this chatbot.</CardDescription>
+               </CardHeader>
+               <CardContent className="space-y-6">
+-                <div className="space-y-2">
+-                  <Label htmlFor="pageId">Facebook Page ID</Label>
+-                  <Input
+-                    id="pageId"
+-                    value={form.messenger_page_id}
+-                    onChange={(e) => set("messenger_page_id", e.target.value)}
+-                    placeholder="e.g. 113756287895355"
+-                  />
+-                </div>
+-                <div className="space-y-2">
+-                  <Label htmlFor="accessToken">Page Access Token</Label>
+-                  <Textarea
+-                    id="accessToken"
+-                    value={form.messenger_access_token}
+-                    onChange={(e) => set("messenger_access_token", e.target.value)}
+-                    rows={4}
+-                    placeholder="Paste your long-lived page access token"
+-                  />
+-                </div>
++                <FacebookPageSelector
++                  selectedPageId={form.messenger_page_id}
++                  onPageSelected={({ page_id, access_token }) => {
++                    set("messenger_page_id", page_id)
++                    set("messenger_access_token", access_token)
++                  }}
++                />
++                {form.messenger_page_id && (
++                  <div className="text-xs text-muted-foreground space-y-1">
++                    <p>Connected Page ID: <span className="font-mono font-medium">{form.messenger_page_id}</span></p>
++                  </div>
++                )}
++                <Separator />
+                 <div className="space-y-2">
+                   <Label>Webhook URL</Label>
+                   <p className="text-xs text-muted-foreground">
+@@ -317,16 +312,6 @@ export default function ChatbotSettingsPage() {
+                     </Button>
+                   </div>
+                 </div>
+-                <div className="bg-blue-50 p-4 rounded-lg">
+-                  <h4 className="font-medium text-blue-900 mb-2">Facebook Developer Console — What to enter</h4>
+-                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+-                    <li>Go to <strong>developers.facebook.com</strong> → Your App → Messenger → Settings</li>
+-                    <li>Under <strong>Webhooks</strong>, click <em>Add Callback URL</em></li>
+-                    <li>Paste the <strong>Webhook URL</strong> above as the Callback URL</li>
+-                    <li>Set <strong>Verify Token</strong> to your <code className="bg-blue-100 px-1 rounded">MESSENGER_VERIFY_TOKEN</code> env value</li>
+-                    <li>Subscribe to the <strong>messages</strong> event</li>
+-                  </ol>
+-                </div>
+               </CardContent>
+             </Card>
+           </div>
+diff --git a/app/dashboard/chatbots/new/page.tsx b/app/dashboard/chatbots/new/page.tsx
+index d9b7b5a..32215ac 100644
+--- a/app/dashboard/chatbots/new/page.tsx
++++ b/app/dashboard/chatbots/new/page.tsx
+@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
+ import { Switch } from "@/components/ui/switch"
+ import { ArrowLeft } from "lucide-react"
+ import Link from "next/link"
++import { FacebookPageSelector } from "@/components/facebook-page-selector"
+ 
+ export default function NewChatbotPage() {
+   const router = useRouter()
+@@ -110,34 +111,26 @@ export default function NewChatbotPage() {
+         <Card>
+           <CardHeader>
+             <CardTitle>Facebook page connection</CardTitle>
+-            <CardDescription>Connect your Facebook business page to receive and send messages via n8n.</CardDescription>
++            <CardDescription>
++              Log in with Facebook to see your Pages, then pick the one this chatbot should respond on.
++            </CardDescription>
+           </CardHeader>
+-          <CardContent className="space-y-4">
+-            <div className="space-y-2">
+-              <Label htmlFor="messenger_page_id">Facebook Page ID *</Label>
+-              <Input
+-                id="messenger_page_id"
+-                placeholder="e.g. 113756287895355"
+-                value={form.messenger_page_id}
+-                onChange={(e) => set("messenger_page_id", e.target.value)}
+-                required
+-              />
+-              <p className="text-xs text-muted-foreground">Found in your Facebook Page → About → Page ID</p>
+-            </div>
+-            <div className="space-y-2">
+-              <Label htmlFor="messenger_access_token">Page Access Token *</Label>
+-              <Textarea
+-                id="messenger_access_token"
+-                placeholder="Paste your long-lived page access token"
+-                value={form.messenger_access_token}
+-                onChange={(e) => set("messenger_access_token", e.target.value)}
+-                rows={3}
+-                required
+-              />
+-              <p className="text-xs text-muted-foreground">
+-                Meta Developer Console → Your App → Messenger → Access Tokens
++          <CardContent>
++            <FacebookPageSelector
++              selectedPageId={form.messenger_page_id}
++              onPageSelected={({ page_id, access_token }) => {
++                setForm((f) => ({
++                  ...f,
++                  messenger_page_id: page_id,
++                  messenger_access_token: access_token,
++                }))
++              }}
++            />
++            {form.messenger_page_id && (
++              <p className="mt-3 text-xs text-green-600">
++                Page connected — ID: {form.messenger_page_id}
+               </p>
+-            </div>
++            )}
+           </CardContent>
+         </Card>
+ 
+diff --git a/components/facebook-page-selector.tsx b/components/facebook-page-selector.tsx
+new file mode 100644
+index 0000000..12c2fd0
+--- /dev/null
++++ b/components/facebook-page-selector.tsx
+@@ -0,0 +1,306 @@
++"use client"
++
++import { useState, useEffect, useCallback } from "react"
++import { Button } from "@/components/ui/button"
++import { Card, CardContent } from "@/components/ui/card"
++import { Badge } from "@/components/ui/badge"
++import { Facebook, Check, RefreshCw, LogOut, AlertCircle } from "lucide-react"
++
++declare global {
++  interface Window {
++    FB: any
++    fbAsyncInit: () => void
++  }
++}
++
++export interface FacebookPage {
++  id: string
++  name: string
++  category: string
++  access_token: string
++  picture?: { data?: { url?: string } }
++}
++
++interface FacebookPageSelectorProps {
++  onPageSelected: (page: { page_id: string; page_name: string; access_token: string }) => void
++  selectedPageId?: string
++  className?: string
++}
++
++export function FacebookPageSelector({
++  onPageSelected,
++  selectedPageId,
++  className,
++}: FacebookPageSelectorProps) {
++  const [sdkLoaded, setSdkLoaded] = useState(false)
++  const [isLoggedIn, setIsLoggedIn] = useState(false)
++  const [pages, setPages] = useState<FacebookPage[]>([])
++  const [loading, setLoading] = useState(false)
++  const [error, setError] = useState<string | null>(null)
++  const [userName, setUserName] = useState<string | null>(null)
++
++  const FB_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID
++
++  // Load Facebook SDK
++  useEffect(() => {
++    if (!FB_APP_ID) {
++      setError("Facebook App ID not configured. Set NEXT_PUBLIC_FACEBOOK_APP_ID in your environment variables.")
++      return
++    }
++
++    if (window.FB) {
++      setSdkLoaded(true)
++      return
++    }
++
++    window.fbAsyncInit = () => {
++      window.FB.init({
++        appId: FB_APP_ID,
++        cookie: true,
++        xfbml: false,
++        version: "v21.0",
++      })
++      setSdkLoaded(true)
++    }
++
++    // Load SDK script
++    if (!document.getElementById("facebook-jssdk")) {
++      const script = document.createElement("script")
++      script.id = "facebook-jssdk"
++      script.src = "https://connect.facebook.net/en_US/sdk.js"
++      script.async = true
++      script.defer = true
++      document.body.appendChild(script)
++    }
++  }, [FB_APP_ID])
++
++  // Check login status when SDK loads
++  useEffect(() => {
++    if (!sdkLoaded) return
++    window.FB.getLoginStatus((response: any) => {
++      if (response.status === "connected") {
++        setIsLoggedIn(true)
++        fetchPages()
++        fetchUserName()
++      }
++    })
++  }, [sdkLoaded])
++
++  const fetchUserName = () => {
++    window.FB.api("/me", { fields: "name" }, (response: any) => {
++      if (response?.name) setUserName(response.name)
++    })
++  }
++
++  const fetchPages = useCallback(() => {
++    setLoading(true)
++    setError(null)
++
++    window.FB.api(
++      "/me/accounts",
++      { fields: "id,name,category,access_token,picture{url}" },
++      async (response: any) => {
++        if (response.error) {
++          setError(response.error.message || "Failed to fetch pages")
++          setLoading(false)
++          return
++        }
++
++        const fbPages: FacebookPage[] = response.data || []
++
++        if (fbPages.length === 0) {
++          setError("No Facebook Pages found. Make sure you're an admin of at least one Facebook Page.")
++          setLoading(false)
++          return
++        }
++
++        // Exchange short-lived tokens for long-lived page tokens
++        try {
++          const res = await fetch("/api/facebook/exchange-token", {
++            method: "POST",
++            headers: { "Content-Type": "application/json" },
++            body: JSON.stringify({
++              pages: fbPages.map((p) => ({
++                id: p.id,
++                name: p.name,
++                category: p.category,
++                access_token: p.access_token,
++                picture_url: p.picture?.data?.url,
++              })),
++            }),
++          })
++
++          if (res.ok) {
++            const { pages: longLivedPages } = await res.json()
++            setPages(longLivedPages)
++          } else {
++            // If token exchange fails, use original tokens (they'll still work, just expire sooner)
++            setPages(fbPages)
++          }
++        } catch {
++          // Fallback: use the short-lived page tokens
++          setPages(fbPages)
++        }
++
++        setLoading(false)
++      }
++    )
++  }, [])
++
++  const handleLogin = () => {
++    setLoading(true)
++    setError(null)
++
++    window.FB.login(
++      (response: any) => {
++        if (response.authResponse) {
++          setIsLoggedIn(true)
++          fetchPages()
++          fetchUserName()
++        } else {
++          setError("Facebook login was cancelled")
++          setLoading(false)
++        }
++      },
++      {
++        scope: "pages_show_list,pages_messaging,pages_read_engagement,pages_manage_metadata",
++        return_scopes: true,
++      }
++    )
++  }
++
++  const handleLogout = () => {
++    window.FB.logout(() => {
++      setIsLoggedIn(false)
++      setPages([])
++      setUserName(null)
++    })
++  }
++
++  const handleSelectPage = (page: FacebookPage) => {
++    onPageSelected({
++      page_id: page.id,
++      page_name: page.name,
++      access_token: page.access_token,
++    })
++  }
++
++  if (!FB_APP_ID) {
++    return (
++      <div className={`rounded-lg border border-yellow-200 bg-yellow-50 p-4 ${className}`}>
++        <div className="flex items-start gap-3">
++          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
++          <div>
++            <p className="text-sm font-medium text-yellow-900">Facebook App ID not configured</p>
++            <p className="text-sm text-yellow-700 mt-1">
++              Add <code className="bg-yellow-100 px-1 rounded">NEXT_PUBLIC_FACEBOOK_APP_ID</code> to your Vercel
++              environment variables to enable Facebook Page connection.
++            </p>
++          </div>
++        </div>
++      </div>
++    )
++  }
++
++  // Not logged in — show login button
++  if (!isLoggedIn) {
++    return (
++      <div className={`space-y-3 ${className}`}>
++        <Button
++          type="button"
++          onClick={handleLogin}
++          disabled={!sdkLoaded || loading}
++          className="w-full gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white"
++        >
++          <Facebook className="h-5 w-5" />
++          {loading ? "Connecting..." : "Connect with Facebook"}
++        </Button>
++        {error && (
++          <p className="text-sm text-red-600">{error}</p>
++        )}
++        <p className="text-xs text-muted-foreground text-center">
++          We'll request permission to see your Pages and send messages on their behalf.
++        </p>
++      </div>
++    )
++  }
++
++  // Logged in — show pages
++  return (
++    <div className={`space-y-4 ${className}`}>
++      {/* Connected user header */}
++      <div className="flex items-center justify-between">
++        <div className="flex items-center gap-2 text-sm">
++          <div className="h-2 w-2 rounded-full bg-green-500" />
++          <span className="text-muted-foreground">
++            Connected as <span className="font-medium text-foreground">{userName || "Facebook User"}</span>
++          </span>
++        </div>
++        <div className="flex gap-2">
++          <Button type="button" variant="ghost" size="sm" onClick={fetchPages} disabled={loading}>
++            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
++          </Button>
++          <Button type="button" variant="ghost" size="sm" onClick={handleLogout}>
++            <LogOut className="h-3 w-3" />
++          </Button>
++        </div>
++      </div>
++
++      {error && (
++        <p className="text-sm text-red-600">{error}</p>
++      )}
++
++      {loading ? (
++        <div className="text-center py-6 text-sm text-muted-foreground">Loading your pages...</div>
++      ) : pages.length === 0 ? (
++        <div className="text-center py-6 text-sm text-muted-foreground">
++          No pages found. Make sure you are an admin of a Facebook Page.
++        </div>
++      ) : (
++        <div className="space-y-2">
++          <p className="text-sm font-medium">Select a Facebook Page:</p>
++          {pages.map((page) => {
++            const isSelected = selectedPageId === page.id
++            return (
++              <Card
++                key={page.id}
++                className={`cursor-pointer transition-all hover:shadow-md ${
++                  isSelected ? "ring-2 ring-primary border-primary" : ""
++                }`}
++                onClick={() => handleSelectPage(page)}
++              >
++                <CardContent className="flex items-center gap-3 p-3">
++                  {page.picture?.data?.url ? (
++                    <img
++                      src={page.picture.data.url}
++                      alt={page.name}
++                      className="h-10 w-10 rounded-full object-cover"
++                    />
++                  ) : (
++                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
++                      <Facebook className="h-5 w-5 text-blue-600" />
++                    </div>
++                  )}
++                  <div className="flex-1 min-w-0">
++                    <p className="text-sm font-medium truncate">{page.name}</p>
++                    <p className="text-xs text-muted-foreground">
++                      ID: {page.id} · {page.category || "Page"}
++                    </p>
++                  </div>
++                  {isSelected ? (
++                    <Badge className="bg-green-100 text-green-800 gap-1">
++                      <Check className="h-3 w-3" />
++                      Connected
++                    </Badge>
++                  ) : (
++                    <Badge variant="outline" className="text-xs">Select</Badge>
++                  )}
++                </CardContent>
++              </Card>
++            )
++          })}
++        </div>
++      )}
++    </div>
++  )
++}
+-- 
+2.34.1
+
