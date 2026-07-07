@@ -52,11 +52,11 @@ async function processWebhook(body: Record<string, unknown>) {
   }
 
   // Log the incoming message to n8n_chat_histories so n8n can pick it up
+  // NOTE: Do NOT include sender_id — it's a generated column (auto-extracted from session_id)
   const { error: insertError } = await supabase.from("n8n_chat_histories").insert({
     session_id: `fb_${senderId}`,
-    sender_id: senderId,
     page_id: pageId,
-    message: JSON.stringify({ type: "human", content: messageText }),
+    message: { type: "human", content: messageText },
   })
 
   if (insertError) {
