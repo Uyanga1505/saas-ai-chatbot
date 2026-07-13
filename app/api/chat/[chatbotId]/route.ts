@@ -11,11 +11,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ chatbot
 
     const supabase = await createClient()
 
-    // Get chatbot configuration
+    // Verify the user is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get chatbot configuration — only if owned by this user
     const { data: chatbot, error: chatbotError } = await supabase
       .from("chatbots")
       .select("*")
       .eq("id", chatbotId)
+      .eq("user_id", user.id)  // Tenant isolation
       .single()
 
     if (chatbotError || !chatbot) {

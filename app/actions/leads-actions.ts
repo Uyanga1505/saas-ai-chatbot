@@ -129,12 +129,25 @@ export async function getConversationHistory(sessionId: string, conversationId?:
   try {
     const supabase = await createClient()
 
+    // Authenticate and scope to user's chatbots
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+
+    const { data: chatbots } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    const pageIds = chatbots?.map(c => c.messenger_page_id).filter(Boolean) || []
+    if (pageIds.length === 0) return []
+
     console.log("[v0] Fetching conversation for session:", sessionId)
 
     const { data: messages, error: messagesError } = await supabase
       .from("n8n_chat_histories")
       .select("*")
       .eq("session_id", sessionId)
+      .in("page_id", pageIds)  // Tenant isolation
       .order("created_at", { ascending: true })
 
     if (messagesError) {
@@ -148,7 +161,6 @@ export async function getConversationHistory(sessionId: string, conversationId?:
     }
 
     console.log("[v0] Found", messages.length, "message rows")
-    console.log("[v0] Sample message keys:", messages[0] ? Object.keys(messages[0]) : "no data")
 
     return messages.map((row: any, idx: number) => ({
       id: row.id || idx,

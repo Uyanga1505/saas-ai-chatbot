@@ -26,7 +26,20 @@ export default function TestChatbotPage() {
 
   const fetchChatbot = async () => {
     const supabase = createClient()
-    const { data, error } = await supabase.from("chatbots").select("*").eq("id", params.id).single()
+
+    // Get current user to enforce tenant isolation
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setIsLoading(false)
+      return
+    }
+
+    const { data, error } = await supabase
+      .from("chatbots")
+      .select("*")
+      .eq("id", params.id)
+      .eq("user_id", user.id)  // Only load chatbots owned by this user
+      .single()
 
     if (error) {
       console.error("Error fetching chatbot:", error)

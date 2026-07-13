@@ -28,10 +28,23 @@ export async function getConversationInsights(sessionId: string) {
   try {
     const supabase = await createClient()
 
+    // Authenticate and scope to user's chatbots
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { insights: [], error: "Not authenticated" }
+
+    const { data: chatbots } = await supabase
+      .from("chatbots")
+      .select("messenger_page_id")
+      .eq("user_id", user.id)
+
+    const pageIds = chatbots?.map(c => c.messenger_page_id).filter(Boolean) || []
+    if (pageIds.length === 0) return { insights: [], error: null }
+
     const { data, error } = await supabase
       .from("conversation_insights")
       .select("*")
       .eq("session_id", sessionId)
+      .in("page_id", pageIds)  // Tenant isolation
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -127,12 +140,22 @@ export async function getInsightsSummary() {
       .select("messenger_page_id")
       .eq("user_id", user.id)
 
-    const pageIds = chatbots?.map(c => c.messenger_page_id) || []
+    const pageIds = chatbots?.map(c => c.messenger_page_id).filter(Boolean) || []
 
-    let query = supabase.from("conversation_insights").select("*").limit(100)
-    if (pageIds.length > 0) {
-      query = query.in("page_id", pageIds)
+    // If user has no chatbots, return empty summary (don't fall through to unfiltered query)
+    if (pageIds.length === 0) {
+      return {
+        summary: {
+          totalInsights: 0,
+          sentimentDistribution: {},
+          averageEngagement: 0,
+          intentDistribution: {},
+        },
+        error: null,
+      }
     }
+
+    let query = supabase.from("conversation_insights").select("*").in("page_id", pageIds).limit(100)
 
     const { data, error } = await query
 
