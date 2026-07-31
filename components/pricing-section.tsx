@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Check } from "lucide-react"
+import Link from "next/link"
 
 const plans = [
   {
@@ -82,8 +83,12 @@ export function PricingSection() {
                     </li>
                   ))}
                 </ul>
-                <Button className="mt-8 w-full" variant={plan.popular ? "default" : "outline"}>
-                  {plan.price === "Custom" ? "Contact Sales" : "Start Free Trial"}
+                <Button className="mt-8 w-full" variant={plan.popular ? "default" : "outline"} asChild>
+                  {plan.price === "Custom" ? (
+                    <a href="mailto:sales@chatflow.app?subject=Enterprise%20Plan%20Inquiry">Contact Sales</a>
+                  ) : (
+                    <Link href="/auth/signup">Start Free Trial</Link>
+                  )}
                 </Button>
               </CardContent>
             </Card>

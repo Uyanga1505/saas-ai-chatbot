@@ -71,10 +71,10 @@ export function ChatbotOverview() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge className={`${getStatusColor(chatbot.is_active)} text-xs`}>
+                <Badge className={`${getStatusColor(chatbot.is_active ?? false)} text-xs`}>
                   {chatbot.is_active ? "active" : "inactive"}
                 </Badge>
-                <Button variant="ghost" size="sm" onClick={() => handleToggle(chatbot.id, chatbot.is_active)}>
+                <Button variant="ghost" size="sm" onClick={() => handleToggle(chatbot.id, chatbot.is_active ?? false)}>
                   {chatbot.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
                 <Link href={`/dashboard/chatbots/${chatbot.id}/settings`}>

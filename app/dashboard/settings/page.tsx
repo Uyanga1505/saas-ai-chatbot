@@ -15,6 +15,7 @@ interface UserProfile {
   email: string
   full_name: string | null
   company_name: string | null
+  created_at: string | null
 }
 
 export default function SettingsPage() {
@@ -42,6 +43,7 @@ export default function SettingsPage() {
           email: user.email || "",
           full_name: user.user_metadata?.full_name || null,
           company_name: user.user_metadata?.company_name || null,
+          created_at: user.created_at || null,
         })
         setFormData({
           full_name: user.user_metadata?.full_name || "",
@@ -155,7 +157,15 @@ export default function SettingsPage() {
             </div>
             <div>
               <p className="text-sm font-medium">Member Since</p>
-              <p className="text-sm text-muted-foreground">Account created</p>
+              <p className="text-sm text-muted-foreground">
+                {profile?.created_at
+                  ? new Date(profile.created_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : "Unknown"}
+              </p>
             </div>
           </div>
         </CardContent>

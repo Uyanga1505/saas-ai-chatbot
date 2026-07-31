@@ -22,24 +22,24 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <Link href="/#features" className="hover:text-foreground transition-colors">
                   Features
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <Link href="/#pricing" className="hover:text-foreground transition-colors">
                   Pricing
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Integrations
-                </a>
+                <Link href="/#demo" className="hover:text-foreground transition-colors">
+                  Demo
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  API
-                </a>
+                <Link href="/auth/signup" className="hover:text-foreground transition-colors">
+                  Get Started
+                </Link>
               </li>
             </ul>
           </div>
@@ -48,22 +48,22 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Resources</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Documentation
+                <a
+                  href="https://developers.facebook.com/docs/messenger-platform/getting-started"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Messenger Setup Guide
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Tutorials
-                </a>
+                <Link href="/auth/login" className="hover:text-foreground transition-colors">
+                  Sign In
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Blog
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <a href="mailto:support@chatflow.app" className="hover:text-foreground transition-colors">
                   Support
                 </a>
               </li>
@@ -74,13 +74,8 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Company</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  About
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Careers
+                <a href="mailto:hello@chatflow.app" className="hover:text-foreground transition-colors">
+                  Contact
                 </a>
               </li>
               <li>

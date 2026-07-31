@@ -26,6 +26,7 @@ interface ChatbotForm {
   ai_model: string
   model_tier: string
   system_prompt: string
+  rag_mode: string        // "inject" | "tool"
   handoff_email: string
   notify_emails: string   // stored as comma-separated string in the form
   enable_human_handoff: boolean
@@ -84,6 +85,7 @@ export default function ChatbotSettingsPage() {
         ai_model: data.ai_model ?? "gemini",
         model_tier: data.model_tier ?? "basic",
         system_prompt: data.system_prompt ?? "",
+        rag_mode: data.rag_mode ?? "inject",
         handoff_email: data.handoff_email ?? "",
         notify_emails: Array.isArray(data.notify_emails) ? data.notify_emails.join(", ") : "",
         enable_human_handoff: data.enable_human_handoff ?? true,
@@ -111,6 +113,7 @@ export default function ChatbotSettingsPage() {
         ai_model: form.ai_model,
         model_tier: form.model_tier,
         system_prompt: form.system_prompt,
+        rag_mode: form.rag_mode,
         handoff_email: form.handoff_email || undefined,
         notify_emails: form.notify_emails
           ? form.notify_emails.split(",").map((e) => e.trim()).filter(Boolean)
@@ -265,6 +268,59 @@ export default function ChatbotSettingsPage() {
                   <p className="text-xs text-muted-foreground">
                     Type your prompt directly or upload a .txt file.
                   </p>
+                </div>
+                <Separator />
+                <div className="space-y-3">
+                  <Label>RAG Mode</Label>
+                  <p className="text-xs text-muted-foreground">
+                    How should the AI use your knowledge base files?
+                  </p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        form.rag_mode === "inject"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/30"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="rag_mode"
+                        value="inject"
+                        checked={form.rag_mode === "inject"}
+                        onChange={() => set("rag_mode", "inject")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium text-sm">Always Inject</p>
+                        <p className="text-xs text-muted-foreground">
+                          KB content is loaded into the system prompt on every message. Best for small knowledge bases — the AI always has full context.
+                        </p>
+                      </div>
+                    </label>
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        form.rag_mode === "tool"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/30"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="rag_mode"
+                        value="tool"
+                        checked={form.rag_mode === "tool"}
+                        onChange={() => set("rag_mode", "tool")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium text-sm">Search Tool</p>
+                        <p className="text-xs text-muted-foreground">
+                          The AI calls a search tool only when it needs KB data. Better for large knowledge bases — saves tokens and lets the AI decide when to search.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
                 <Separator />
                 <div className="space-y-2">

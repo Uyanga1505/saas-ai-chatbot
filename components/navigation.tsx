@@ -29,13 +29,13 @@ export function Navigation() {
               Pricing
             </a>
             <a
-              href="#docs"
+              href="#demo"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Docs
+              Demo
             </a>
             <a
-              href="#support"
+              href="mailto:support@chatflow.app"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Support

@@ -32,6 +32,7 @@ export default function NewChatbotPage() {
     model_tier: "basic",
     system_prompt:
       "You are a helpful AI assistant for our business. Answer questions about our products and services professionally.",
+    rag_mode: "inject",
     handoff_email: "",
     notify_emails: "",
     enable_human_handoff: true,
@@ -282,6 +283,60 @@ export default function NewChatbotPage() {
               <p className="text-xs text-muted-foreground">
                 Type your prompt directly or upload a .txt file.
               </p>
+            </div>
+
+            {/* RAG mode selector */}
+            <div className="space-y-3">
+              <Label>RAG Mode</Label>
+              <p className="text-xs text-muted-foreground">
+                How should the AI use your knowledge base files?
+              </p>
+              <div className="grid grid-cols-1 gap-3">
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    form.rag_mode === "inject"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rag_mode"
+                    value="inject"
+                    checked={form.rag_mode === "inject"}
+                    onChange={() => set("rag_mode", "inject")}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Always Inject</p>
+                    <p className="text-xs text-muted-foreground">
+                      KB content is loaded into the system prompt on every message. Best for small knowledge bases — the AI always has full context.
+                    </p>
+                  </div>
+                </label>
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    form.rag_mode === "tool"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rag_mode"
+                    value="tool"
+                    checked={form.rag_mode === "tool"}
+                    onChange={() => set("rag_mode", "tool")}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Search Tool</p>
+                    <p className="text-xs text-muted-foreground">
+                      The AI calls a search tool only when it needs KB data. Better for large knowledge bases — saves tokens and lets the AI decide when to search.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* KB file upload */}

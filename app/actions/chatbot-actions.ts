@@ -50,6 +50,7 @@ export type ChatbotFormData = {
   model_tier: string      // "basic" | "premium"
   system_prompt: string
   rag_store_id?: string
+  rag_mode?: string       // "inject" = always in prompt, "tool" = AI searches on demand
   handoff_email?: string
   notify_emails?: string[]
   enable_human_handoff: boolean
@@ -114,6 +115,7 @@ export async function createChatbot(formData: ChatbotFormData) {
       model_tier: formData.model_tier,
       system_prompt: formData.system_prompt,
       rag_store_id: formData.rag_store_id ?? null,
+      rag_mode: formData.rag_mode ?? "inject",
       handoff_email: formData.handoff_email ?? null,
       notify_emails: formData.notify_emails ?? [],
       enable_human_handoff: formData.enable_human_handoff,

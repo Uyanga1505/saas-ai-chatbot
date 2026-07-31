@@ -111,7 +111,20 @@ export async function updateProfile(data: { full_name: string; company_name: str
       return { error: "Not authenticated" }
     }
 
-    const { error } = await supabase
+    // Update auth user metadata so changes are reflected on page reload
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        full_name: data.full_name,
+        company_name: data.company_name,
+      },
+    })
+
+    if (authError) {
+      return { error: authError.message }
+    }
+
+    // Also update the profiles table for any direct DB queries
+    await supabase
       .from("profiles")
       .update({
         full_name: data.full_name,
@@ -119,10 +132,6 @@ export async function updateProfile(data: { full_name: string; company_name: str
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id)
-
-    if (error) {
-      return { error: error.message }
-    }
 
     return { error: null }
   } catch (error) {

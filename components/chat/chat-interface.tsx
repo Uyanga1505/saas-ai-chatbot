@@ -30,7 +30,7 @@ export function ChatInterface({ chatbotId, chatbotName }: ChatInterfaceProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (input.trim() && status !== "in_progress") {
+    if (input.trim() && status === "ready") {
       sendMessage({ text: input })
       setInput("")
     }
@@ -89,7 +89,7 @@ export function ChatInterface({ chatbotId, chatbotName }: ChatInterfaceProps) {
             </div>
           ))}
 
-          {status === "in_progress" && (
+          {status !== "ready" && (
             <div className="flex gap-3 justify-start">
               <Avatar className="h-8 w-8">
                 <AvatarFallback>
@@ -120,10 +120,10 @@ export function ChatInterface({ chatbotId, chatbotName }: ChatInterfaceProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
-              disabled={status === "in_progress"}
+              disabled={status !== "ready"}
               className="flex-1"
             />
-            <Button type="submit" size="sm" disabled={!input.trim() || status === "in_progress"}>
+            <Button type="submit" size="sm" disabled={!input.trim() || status !== "ready"}>
               <Send className="h-4 w-4" />
             </Button>
           </form>

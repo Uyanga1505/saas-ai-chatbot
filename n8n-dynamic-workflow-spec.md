@@ -28,7 +28,7 @@ URL: https://ezcffhprxwitdnodukzv.supabase.co/rest/v1/chatbots
 
 Query Parameters:
   messenger_page_id  =  eq.{{ $('set1').item.json.body.entry[0].messaging[0].recipient.id }}
-  select             =  system_prompt,ai_model,model_tier,rag_store_id,messenger_access_token,handoff_email,notify_emails,enable_human_handoff,messenger_page_id
+  select             =  system_prompt,ai_model,model_tier,rag_store_id,rag_mode,messenger_access_token,handoff_email,notify_emails,enable_human_handoff,messenger_page_id
   limit              =  1
 
 Headers:

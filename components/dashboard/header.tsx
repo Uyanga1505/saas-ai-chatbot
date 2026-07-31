@@ -9,7 +9,7 @@ import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 interface User {
-  email: string
+  email?: string
   user_metadata?: {
     full_name?: string
   }
@@ -54,15 +54,19 @@ export function DashboardHeader() {
 
         <ThemeToggle />
 
-        <Button variant="ghost" size="sm">
-          <Bell className="h-4 w-4" />
+        <Button variant="ghost" size="sm" asChild title="View conversations">
+          <Link href="/dashboard/conversations">
+            <Bell className="h-4 w-4" />
+          </Link>
         </Button>
 
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="text-xs">
-            {user ? getInitials(user.user_metadata?.full_name, user.email) : "U"}
-          </AvatarFallback>
-        </Avatar>
+        <Link href="/dashboard/settings" title="Account settings">
+          <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow">
+            <AvatarFallback className="text-xs">
+              {user ? getInitials(user.user_metadata?.full_name, user.email || "") : "U"}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
       </div>
     </header>
   )

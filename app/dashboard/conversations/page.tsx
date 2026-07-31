@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, Search, Filter, User, Star, CheckCircle2, ExternalLink } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { MessageSquare, Search, User, Star, CheckCircle2, ExternalLink } from "lucide-react"
 import { useState, useEffect } from "react"
 import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
 import { formatDistanceToNow } from "date-fns"
@@ -44,6 +45,8 @@ export default function ConversationsPage() {
   const [isLoadingExternal, setIsLoadingExternal] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("messenger")
+  const [filterQualified, setFilterQualified] = useState("all")
+  const [filterSentiment, setFilterSentiment] = useState("all")
 
   useEffect(() => {
     fetchExternalConversations()
@@ -55,12 +58,22 @@ export default function ConversationsPage() {
     setIsLoadingExternal(false)
   }
 
-  const filteredExternalConversations = externalConversations.filter(
-    (conversation) =>
+  const filteredExternalConversations = externalConversations.filter((conversation) => {
+    const matchesSearch =
       conversation.session_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conversation.email_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conversation.sender_id?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      conversation.sender_id?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesQualified =
+      filterQualified === "all" ||
+      (filterQualified === "qualified" && conversation.qualified_lead) ||
+      (filterQualified === "unqualified" && !conversation.qualified_lead)
+
+    const matchesSentiment =
+      filterSentiment === "all" || conversation.sentiment?.toLowerCase() === filterSentiment
+
+    return matchesSearch && matchesQualified && matchesSentiment
+  })
 
   const getQualityColor = (score: number | null) => {
     if (!score) return "bg-gray-100 text-gray-800"
@@ -92,10 +105,27 @@ export default function ConversationsPage() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" className="gap-2 bg-transparent">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
+            <Select value={filterQualified} onValueChange={setFilterQualified}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Leads</SelectItem>
+                <SelectItem value="qualified">Qualified</SelectItem>
+                <SelectItem value="unqualified">Unqualified</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterSentiment} onValueChange={setFilterSentiment}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Sentiment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sentiments</SelectItem>
+                <SelectItem value="positive">Positive</SelectItem>
+                <SelectItem value="neutral">Neutral</SelectItem>
+                <SelectItem value="negative">Negative</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {isLoadingExternal ? (

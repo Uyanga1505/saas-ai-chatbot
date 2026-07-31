@@ -30,7 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ chatbot
     }
 
     // Convert messages for AI model
-    const modelMessages = convertToModelMessages(messages)
+    const modelMessages = await convertToModelMessages(messages)
 
     // Add system prompt
     const systemMessage = {

@@ -204,7 +204,9 @@ export default function LeadDetailPage() {
           )}
 
           {/* Conversation History */}
-          <ConversationHistory sessionId={lead.session_id} />
+          <div id="conversation-history">
+            <ConversationHistory sessionId={lead.session_id} />
+          </div>
 
           {/* AI-powered Conversation Insights */}
           <ConversationInsights sessionId={lead.session_id} />
@@ -372,7 +374,13 @@ export default function LeadDetailPage() {
                   </Button>
                 </a>
               )}
-              <Button className="w-full bg-transparent" variant="outline">
+              <Button
+                className="w-full bg-transparent"
+                variant="outline"
+                onClick={() =>
+                  document.getElementById("conversation-history")?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 View Full Thread
               </Button>
