@@ -1,6 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 
+// Allow time for the debounce wait before pushing to n8n
+export const maxDuration = 30
+
+// Seconds to wait after a message before triggering the AI — gives the
+// user time to finish typing multi-message thoughts. The queue endpoint
+// then combines all their pending messages into one reply.
+const DEBOUNCE_SECONDS = Number(process.env.MESSAGE_DEBOUNCE_SECONDS ?? "8")
+
 // ─── Facebook Webhook Verification ───────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -18,32 +26,59 @@ export async function GET(req: NextRequest) {
 
 // ─── Incoming Message Handler ────────────────────────────────────────────────
 //
-// ASYNC & DECOUPLED ARCHITECTURE:
+// ASYNC & DECOUPLED ARCHITECTURE WITH TYPING DEBOUNCE:
 //
 // 1. Parse the Facebook payload
 // 2. Dedup by facebook message ID (mid) — skip if already stored
 // 3. Store in Supabase with processing_status = 'pending'
-// 4. Return 200 immediately (Facebook is happy, no retries)
-// 5. Fire-and-forget push to n8n (best-effort, not awaited)
-// 6. If n8n push fails, the polling endpoint picks up pending messages
+// 4. Wait DEBOUNCE_SECONDS — the user may still be typing more messages
+// 5. If a NEWER message arrived for this session during the wait, do
+//    nothing — that newer webhook invocation owns the batch
+// 6. Otherwise push a wake-up to n8n; n8n fetches from the queue
+//    endpoint, which combines all the user's pending messages into ONE
+// 7. If n8n is down, the polling endpoint picks the batch up anyway
 //
-// This ensures Facebook never times out, messages are never lost, and
-// duplicate deliveries are silently ignored.
+// Result: rapid consecutive messages get a single reply with full
+// context, messages are never lost, duplicates are ignored, and
+// Facebook gets its 200 well within its timeout.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
 
   try {
-    const messageId = await storeMessage(body)
+    const stored = await storeMessage(body)
 
-    if (messageId) {
+    if (stored) {
+      const { messageId, sessionId } = stored
+
+      // ── Debounce: give the user time to finish typing ──
+      if (DEBOUNCE_SECONDS > 0) {
+        await new Promise((r) => setTimeout(r, DEBOUNCE_SECONDS * 1000))
+
+        // If a newer message arrived in this session while we waited,
+        // skip — the invocation handling that newer message will push.
+        const supabase = createAdminClient()
+        const { data: newer } = await supabase
+          .from("n8n_chat_histories")
+          .select("id")
+          .eq("session_id", sessionId)
+          .eq("processing_status", "pending")
+          .gt("id", messageId)
+          .limit(1)
+          .maybeSingle()
+
+        if (newer) {
+          console.log(
+            `[webhook] Newer message in ${sessionId} — deferring push to its invocation`
+          )
+          return NextResponse.json({ status: "ok" }, { status: 200 })
+        }
+      }
+
       // Push to n8n — must be awaited because Vercel kills the function
-      // after the response is sent. The push itself is fast (~200ms) since
-      // n8n's "Respond 200" node fires early. The slow AI processing
-      // happens inside n8n AFTER it has already responded to us.
-      // If n8n is down, we catch the error — the message stays 'pending'
-      // in Supabase and the polling endpoint will retry it.
+      // after the response is sent. If n8n is down, we catch the error —
+      // the messages stay 'pending' and the polling endpoint retries.
       try {
         await pushToN8n(body, messageId)
       } catch (err) {
@@ -61,7 +96,7 @@ export async function POST(req: NextRequest) {
 
 async function storeMessage(
   body: Record<string, unknown>
-): Promise<number | null> {
+): Promise<{ messageId: number; sessionId: string } | null> {
   const entry = (body.entry as Record<string, unknown>[])?.[0]
   if (!entry) return null
 
@@ -138,7 +173,7 @@ async function storeMessage(
   }
 
   console.log(`[webhook] Stored message id=${inserted.id}, status=pending`)
-  return inserted.id
+  return { messageId: inserted.id, sessionId: `fb_${senderId}` }
 }
 
 // ─── Push to n8n ─────────────────────────────────────────────────────────────
