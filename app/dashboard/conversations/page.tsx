@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MessageSquare, Search, User, Star, CheckCircle2, ExternalLink } from "lucide-react"
 import { useState, useEffect } from "react"
 import { fetchLeads, type Lead } from "@/app/actions/leads-actions"
+import { normalizeSentiment } from "@/lib/sentiment"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
@@ -70,7 +71,7 @@ export default function ConversationsPage() {
       (filterQualified === "unqualified" && !conversation.qualified_lead)
 
     const matchesSentiment =
-      filterSentiment === "all" || conversation.sentiment?.toLowerCase() === filterSentiment
+      filterSentiment === "all" || normalizeSentiment(conversation.sentiment) === filterSentiment
 
     return matchesSearch && matchesQualified && matchesSentiment
   })

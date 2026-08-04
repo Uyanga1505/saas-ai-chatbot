@@ -25,6 +25,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ConversationHistory } from "@/components/dashboard/conversation-history"
 import { ConversationInsights } from "@/components/dashboard/conversation-insights"
+import { normalizeSentiment } from "@/lib/sentiment"
 
 interface Lead {
   id: number
@@ -111,9 +112,9 @@ export default function LeadDetailPage() {
   }
 
   const getSentimentIcon = (sentiment: string | null) => {
-    if (!sentiment) return <Meh className="h-5 w-5" />
-    if (sentiment.toLowerCase() === "positive") return <Smile className="h-5 w-5 text-green-600" />
-    if (sentiment.toLowerCase() === "negative") return <Frown className="h-5 w-5 text-red-600" />
+    const canonical = normalizeSentiment(sentiment)
+    if (canonical === "positive") return <Smile className="h-5 w-5 text-green-600" />
+    if (canonical === "negative") return <Frown className="h-5 w-5 text-red-600" />
     return <Meh className="h-5 w-5 text-blue-600" />
   }
 

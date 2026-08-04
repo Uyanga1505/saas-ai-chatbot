@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { normalizeSentiment } from "@/lib/sentiment"
 
 export interface ConversationInsight {
   id: number
@@ -161,9 +162,10 @@ export async function getInsightsSummary() {
       return { summary: null, error: error.message }
     }
 
-    // Calculate summary statistics - safely handle missing fields
+    // Group free-form sentiment labels (mixed Mongolian/English variants)
+    // into three canonical buckets: positive / neutral / negative
     const sentimentCounts = data.reduce((acc: any, insight: any) => {
-      const sentiment = insight.sentiment || "neutral"
+      const sentiment = normalizeSentiment(insight.sentiment)
       acc[sentiment] = (acc[sentiment] || 0) + 1
       return acc
     }, {})

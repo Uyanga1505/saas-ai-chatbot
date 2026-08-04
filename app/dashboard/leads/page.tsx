@@ -10,6 +10,7 @@ import { Users, Search, Mail, Phone, TrendingUp, MessageSquare, Star, AlertCircl
 import { useState, useEffect } from "react"
 import { getLeadsSummary, type Lead } from "@/app/actions/leads-actions"
 import { getLeadsWithInsights } from "@/app/actions/insights-actions"
+import { normalizeSentiment } from "@/lib/sentiment"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
@@ -61,7 +62,7 @@ export default function LeadsPage() {
       (filterQualified === "qualified" && lead.qualified_lead) ||
       (filterQualified === "unqualified" && !lead.qualified_lead)
 
-    const matchesSentiment = filterSentiment === "all" || lead.sentiment?.toLowerCase() === filterSentiment
+    const matchesSentiment = filterSentiment === "all" || normalizeSentiment(lead.sentiment) === filterSentiment
 
     const matchesHasInsights =
       filterHasInsights === "all" ||
@@ -92,9 +93,9 @@ export default function LeadsPage() {
   }
 
   const getSentimentColor = (sentiment: string | null) => {
-    if (!sentiment) return "bg-gray-100 text-gray-800"
-    if (sentiment.toLowerCase() === "positive") return "bg-green-100 text-green-800"
-    if (sentiment.toLowerCase() === "negative") return "bg-red-100 text-red-800"
+    const canonical = normalizeSentiment(sentiment)
+    if (canonical === "positive") return "bg-green-100 text-green-800"
+    if (canonical === "negative") return "bg-red-100 text-red-800"
     return "bg-blue-100 text-blue-800"
   }
 
