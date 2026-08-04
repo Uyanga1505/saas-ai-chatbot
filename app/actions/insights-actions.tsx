@@ -150,7 +150,7 @@ export async function getInsightsSummary() {
         .in("page_id", pageIds),
       supabase
         .from("conversation_insights")
-        .select("sentiment, engagement_score, intent, customer_intent")
+        .select("sentiment, customer_intent, lead_quality_score")
         .in("page_id", pageIds)
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -168,16 +168,18 @@ export async function getInsightsSummary() {
       return acc
     }, {})
 
-    const engagementScores = data
-      .map((insight: any) => insight.engagement_score)
+    // "Engagement" = average lead quality score (0-10); the table has no
+    // separate engagement_score column
+    const qualityScores = data
+      .map((insight: any) => insight.lead_quality_score)
       .filter((score: any) => typeof score === "number")
     const avgEngagement =
-      engagementScores.length > 0
-        ? engagementScores.reduce((sum: number, score: number) => sum + score, 0) / engagementScores.length
+      qualityScores.length > 0
+        ? qualityScores.reduce((sum: number, score: number) => sum + score, 0) / qualityScores.length
         : 0
 
     const intentCounts = data.reduce((acc: any, insight: any) => {
-      const intent = insight.intent || insight.customer_intent || "unknown"
+      const intent = insight.customer_intent || "unknown"
       acc[intent] = (acc[intent] || 0) + 1
       return acc
     }, {})
