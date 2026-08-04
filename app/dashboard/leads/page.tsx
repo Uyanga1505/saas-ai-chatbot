@@ -8,13 +8,21 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Users, Search, Mail, Phone, TrendingUp, MessageSquare, Star, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useState, useEffect } from "react"
-import type { Lead } from "@/app/actions/leads-actions"
+import { getLeadsSummary, type Lead } from "@/app/actions/leads-actions"
 import { getLeadsWithInsights } from "@/app/actions/insights-actions"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
+interface LeadsSummary {
+  totalLeads: number
+  qualifiedLeads: number
+  withContactInfo: number
+  avgQualityScore: number
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
+  const [summary, setSummary] = useState<LeadsSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -29,11 +37,15 @@ export default function LeadsPage() {
   }, [])
 
   const loadLeads = async () => {
-    const { data, error } = await getLeadsWithInsights()
+    const [{ data, error }, summaryData] = await Promise.all([
+      getLeadsWithInsights(),
+      getLeadsSummary(),
+    ])
     if (error) {
       setConnectionError(error)
     }
     setLeads(data)
+    setSummary(summaryData)
     setIsLoading(false)
   }
 
@@ -86,10 +98,11 @@ export default function LeadsPage() {
     return "bg-blue-100 text-blue-800"
   }
 
-  const qualifiedCount = leads.filter((l) => l.qualified_lead).length
-  const avgQualityScore =
-    leads.filter((l) => l.lead_quality_score).reduce((sum, l) => sum + (l.lead_quality_score || 0), 0) /
-      leads.filter((l) => l.lead_quality_score).length || 0
+  // Server-side aggregates (accurate for the full dataset, not just the page)
+  const totalCount = summary?.totalLeads ?? leads.length
+  const qualifiedCount = summary?.qualifiedLeads ?? leads.filter((l) => l.qualified_lead).length
+  const withContactCount = summary?.withContactInfo ?? leads.filter((l) => l.email_address || l.phone).length
+  const avgQualityScore = summary?.avgQualityScore ?? 0
 
   if (isLoading) {
     return (
@@ -167,7 +180,7 @@ export default function LeadsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leads.length}</div>
+            <div className="text-2xl font-bold">{totalCount.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
@@ -176,9 +189,9 @@ export default function LeadsPage() {
             <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{qualifiedCount}</div>
+            <div className="text-2xl font-bold">{qualifiedCount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {leads.length > 0 ? ((qualifiedCount / leads.length) * 100).toFixed(0) : 0}% conversion
+              {totalCount > 0 ? ((qualifiedCount / totalCount) * 100).toFixed(0) : 0}% conversion
             </p>
           </CardContent>
         </Card>
@@ -197,7 +210,7 @@ export default function LeadsPage() {
             <Mail className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leads.filter((l) => l.email_address || l.phone).length}</div>
+            <div className="text-2xl font-bold">{withContactCount.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>

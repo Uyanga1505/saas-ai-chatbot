@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bot, MessageSquare, Users, TrendingUp } from "lucide-react"
 import { useState, useEffect } from "react"
-import { fetchLeads } from "@/app/actions/leads-actions"
+import { getLeadsSummary } from "@/app/actions/leads-actions"
 import { useChatbot } from "@/lib/chatbot-context"
 
 export function StatsCards() {
@@ -20,23 +20,10 @@ export function StatsCards() {
   }, [selectedChatbotId])
 
   const loadStats = async () => {
+    // Server-side aggregate counts — accurate for any dataset size
     const pageIds = getPageIds()
-    const { data } = await fetchLeads(pageIds.length > 0 ? pageIds : undefined)
-
-    const qualifiedCount = data.filter((l) => l.qualified_lead).length
-    const scoresData = data.filter((l) => l.lead_quality_score)
-    const avgScore =
-      scoresData.length > 0
-        ? scoresData.reduce((sum, l) => sum + (l.lead_quality_score || 0), 0) / scoresData.length
-        : 0
-    const withContact = data.filter((l) => l.email_address || l.phone).length
-
-    setStats({
-      totalLeads: data.length,
-      qualifiedLeads: qualifiedCount,
-      avgQualityScore: avgScore,
-      withContactInfo: withContact,
-    })
+    const summary = await getLeadsSummary(pageIds.length > 0 ? pageIds : undefined)
+    setStats(summary)
   }
 
   return (
@@ -47,7 +34,7 @@ export function StatsCards() {
           <MessageSquare className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalLeads}</div>
+          <div className="text-2xl font-bold">{stats.totalLeads.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">From Messenger conversations</p>
         </CardContent>
       </Card>

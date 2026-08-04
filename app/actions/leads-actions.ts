@@ -186,7 +186,7 @@ export async function getLeadById(id: string) {
   return result.data
 }
 
-export async function getLeadsSummary() {
+export async function getLeadsSummary(filterPageIds?: string[]) {
   try {
     const supabase = await createClient()
 
@@ -227,41 +227,53 @@ export async function getLeadsSummary() {
       }
     }
 
-    const pageIds = chatbots.map(c => c.messenger_page_id)
-
-    const { data: leads, error } = await supabase
-      .from("conversation_insights")
-      .select("*")
-      .in("page_id", pageIds)
-
-    if (error) {
-      console.error("Error fetching leads summary:", error)
-      return {
-        totalLeads: 0,
-        qualifiedLeads: 0,
-        withContactInfo: 0,
-        avgQualityScore: 0,
-      }
+    const userPageIds = chatbots.map(c => c.messenger_page_id).filter(Boolean)
+    // Optional filter (e.g. selected chatbot) — always intersected with the
+    // user's own pages so a caller can never widen the scope.
+    const pageIds =
+      filterPageIds && filterPageIds.length > 0
+        ? userPageIds.filter(p => filterPageIds.includes(p))
+        : userPageIds
+    if (pageIds.length === 0) {
+      return { totalLeads: 0, qualifiedLeads: 0, withContactInfo: 0, avgQualityScore: 0 }
     }
 
-    const totalLeads = leads?.length || 0
-    const qualifiedLeads = leads?.filter((lead: any) => lead.qualified_lead === true).length || 0
-    const withContactInfo = leads?.filter((lead: any) => lead.email_address || lead.phone).length || 0
+    // Use server-side counts — select("*") is capped at 1000 rows and
+    // produces wrong totals for large datasets.
+    const [totalRes, qualifiedRes, contactRes, scoresRes] = await Promise.all([
+      supabase
+        .from("conversation_insights")
+        .select("*", { count: "exact", head: true })
+        .in("page_id", pageIds),
+      supabase
+        .from("conversation_insights")
+        .select("*", { count: "exact", head: true })
+        .in("page_id", pageIds)
+        .eq("qualified_lead", true),
+      supabase
+        .from("conversation_insights")
+        .select("*", { count: "exact", head: true })
+        .in("page_id", pageIds)
+        .or("email_address.not.is.null,phone.not.is.null"),
+      supabase
+        .from("conversation_insights")
+        .select("lead_quality_score")
+        .in("page_id", pageIds)
+        .not("lead_quality_score", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1000),
+    ])
 
-    const qualityScores = leads
-      ?.map((lead: any) => lead.lead_quality_score)
-      .filter((score: any) => score != null && !isNaN(score))
-
-    const avgQualityScore =
-      qualityScores && qualityScores.length > 0
-        ? qualityScores.reduce((sum: number, score: number) => sum + score, 0) / qualityScores.length
-        : 0
+    const scores = (scoresRes.data || [])
+      .map((r: any) => r.lead_quality_score)
+      .filter((s: any) => s != null && !isNaN(s))
 
     return {
-      totalLeads,
-      qualifiedLeads,
-      withContactInfo,
-      avgQualityScore,
+      totalLeads: totalRes.count || 0,
+      qualifiedLeads: qualifiedRes.count || 0,
+      withContactInfo: contactRes.count || 0,
+      avgQualityScore:
+        scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0,
     }
   } catch (error) {
     console.error("Error calculating leads summary:", error)

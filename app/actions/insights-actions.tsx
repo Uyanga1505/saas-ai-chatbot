@@ -59,7 +59,7 @@ export async function getConversationInsights(sessionId: string) {
   }
 }
 
-export async function getLeadsWithInsights() {
+export async function getLeadsWithInsights(limit = 500) {
   try {
     const supabase = await createClient()
 
@@ -78,49 +78,36 @@ export async function getLeadsWithInsights() {
       return { data: [], error: chatbotsError.message }
     }
 
-    // If user has no chatbots, return empty data
-    if (!chatbots || chatbots.length === 0) {
+    const pageIds = chatbots?.map(c => c.messenger_page_id).filter(Boolean) || []
+    if (pageIds.length === 0) {
       return { data: [], error: null }
     }
 
-    const pageIds = chatbots.map(c => c.messenger_page_id)
-
-    // Get leads from n8n_chat_histories filtered by user's chatbot page_ids
-    const { data: leads, error: leadsError } = await supabase
-      .from("n8n_chat_histories")
-      .select("*")
-      .in("page_id", pageIds)
-      .order("created_at", { ascending: false })
-
-    if (leadsError) {
-      console.error("[v0] Error fetching leads:", leadsError)
-      return { data: [], error: leadsError.message }
-    }
-
-    // Get insights filtered by user's chatbot page_ids
+    // conversation_insights is the source of truth for leads:
+    // one row per session with AI analysis (qualified, score, sentiment,
+    // contact info, summary). n8n_chat_histories holds raw per-message
+    // rows and must NOT be used as a leads list.
     const { data: insights, error: insightsError } = await supabase
       .from("conversation_insights")
       .select("*")
       .in("page_id", pageIds)
+      .order("created_at", { ascending: false })
+      .limit(limit)
 
     if (insightsError) {
-      console.error("[v0] Error fetching insights:", insightsError)
-      // Continue without insights if table doesn't exist
+      console.error("[v0] Error fetching leads:", insightsError)
+      return { data: [], error: insightsError.message }
     }
 
-    // Merge insights with leads
-    const leadsWithInsights = leads.map((lead: any) => {
-      const insight = insights?.find((i: any) => i.session_id === lead.session_id)
-      return {
-        ...lead,
-        insight: insight || null,
-        // Merge contact info from both tables (prefer insight table)
-        email_address: insight?.email_address || insight?.contact_email || lead.email_address,
-        phone: insight?.phone || insight?.phone_number || lead.phone,
-      }
-    })
+    const leads = (insights || []).map((row: any) => ({
+      ...row,
+      insight: row,
+      // Normalize contact fields (data may use contact_email / phone_number)
+      email_address: row.email_address || row.contact_email || null,
+      phone: row.phone || row.phone_number || null,
+    }))
 
-    return { data: leadsWithInsights, error: null }
+    return { data: leads, error: null }
   } catch (error) {
     console.error("[v0] Exception fetching leads with insights:", error)
     return { data: [], error: "Failed to fetch leads with insights" }
@@ -155,9 +142,19 @@ export async function getInsightsSummary() {
       }
     }
 
-    let query = supabase.from("conversation_insights").select("*").in("page_id", pageIds).limit(100)
-
-    const { data, error } = await query
+    // Exact total via count; distributions from the most recent 1000 insights
+    const [countRes, { data, error }] = await Promise.all([
+      supabase
+        .from("conversation_insights")
+        .select("*", { count: "exact", head: true })
+        .in("page_id", pageIds),
+      supabase
+        .from("conversation_insights")
+        .select("sentiment, engagement_score, intent, customer_intent")
+        .in("page_id", pageIds)
+        .order("created_at", { ascending: false })
+        .limit(1000),
+    ])
 
     if (error) {
       console.error("[v0] Error fetching insights summary:", error)
@@ -187,7 +184,7 @@ export async function getInsightsSummary() {
 
     return {
       summary: {
-        totalInsights: data.length,
+        totalInsights: countRes.count ?? data.length,
         sentimentDistribution: sentimentCounts,
         averageEngagement: avgEngagement,
         intentDistribution: intentCounts,
